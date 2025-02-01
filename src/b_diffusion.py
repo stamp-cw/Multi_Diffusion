@@ -141,7 +141,7 @@ class BDiffusion:
         )
 
     # modify
-    # todo: xxx
+    #
     # compute predicted mean and variance of p(x_{t-1} | x_t)
     def p_mean_variance(self, model, x_t, t, clip_denoised=True):
         # predict noise using model
