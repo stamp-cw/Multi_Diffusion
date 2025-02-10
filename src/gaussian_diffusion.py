@@ -1,9 +1,8 @@
 import torch
-from torch.distributions import Gamma
 from tqdm import tqdm
 
-from src.utils import linear_beta_schedule, cosine_beta_schedule, sigmoid_beta_schedule, sqrt_beta_schedule, \
-    gamma_linear_beta_schedule
+from src.utils import cosine_beta_schedule, sigmoid_beta_schedule, sqrt_beta_schedule, \
+    gaussian_linear_beta_schedule
 import torch.nn.functional as F
 
 
@@ -14,13 +13,12 @@ class GaussianDiffusion:
     def __init__(
             self,
             timesteps=1000,
-            theta_0=0.001,
             beta_schedule='linear'
     ):
         self.timesteps = timesteps
 
         if beta_schedule == 'linear':
-            betas = gamma_linear_beta_schedule(timesteps)
+            betas = gaussian_linear_beta_schedule(timesteps)
         elif beta_schedule == 'cosine':
             betas = cosine_beta_schedule(timesteps)
         elif beta_schedule == 'sigmoid':

@@ -15,6 +15,7 @@ class NBDiffusion:
     ):
         self.timesteps = timesteps
 
+
         if beta_schedule == 'linear':
             # betas = torch.linspace(1, timesteps,timesteps, dtype=torch.float64)
             betas = nb_linear_beta_schedule(timesteps) # 此处betas 就是t,为了方便没有改
@@ -30,40 +31,53 @@ class NBDiffusion:
 
         # modify
         # NB distribution
-        self.A = 100 # 负二项分布，成功次数
-        self.a = torch.tensor(self.A) / self.betas[0] # 比例系数，保证负二项分布为 30
-        self.sqrt_a = torch.sqrt(self.a)
+        # self.A = 100 # 负二项分布，成功次数
+        # self.a = torch.tensor(self.A) / self.betas[0] # 比例系数，保证负二项分布为 30
+        # self.sqrt_a = torch.sqrt(self.a)
+        self.t = torch.linspace(1, timesteps, timesteps, dtype=torch.float32)
 
         # x0->xt系数
         # self.forward_noise_coef1 = 1/(self.sqrt_a*(self.betas + 1))
         # self.forward_noise_coef1 = 1/(self.betas + 1)
-        self.forward_noise_coef1 = 1/(self.betas + 1)
+        # self.forward_noise_coef1 = 1/(self.betas + 1)
+        self.forward_noise_coef1 = torch.sqrt(self.betas)
+        # self.sqrt_t = torch.sqrt(t)
+
         # self.forward_noise_coef2 = 1/(self.sqrt_a*(self.betas + 1))
         # self.forward_noise_coef2 = (1/self.sqrt_a) * self.forward_noise_coef1
         # self.forward_noise_coef2 = (1/self.sqrt_a) * self.forward_noise_coef1
 
-        self.p = 0.5
-        self.r_s_t = self.a * betas
-        # self.r_bar_s_t = 0.5 * self.a *self.betas * (self.betas+1)
-        self.r_bar_s_t = torch.cumsum(self.r_s_t, dim=0)
-        self.e_noise_s_t = self.r_bar_s_t * ((1-self.p) / self.p)
-        self.v_noise_s_t = self.r_bar_s_t *((1-self.p)/ (self.p ** 2))
-        self.std_noise_s_t = torch.sqrt(self.v_noise_s_t)
+        # self.p = 0.5
+        # self.r_s_t = self.a * betas
+        # # self.r_bar_s_t = 0.5 * self.a *self.betas * (self.betas+1)
+        # self.r_bar_s_t = torch.cumsum(self.r_s_t, dim=0)
+        # self.e_noise_s_t = self.r_bar_s_t * ((1-self.p) / self.p)
+        # self.v_noise_s_t = self.r_bar_s_t *((1-self.p)/ (self.p ** 2))
+        # self.std_noise_s_t = torch.sqrt(self.v_noise_s_t)
+        # self.noise_coef1 = 1/(self.sqrt_a*(self.betas+1))
 
-        self.noise_coef1 = 1/(self.sqrt_a*(self.betas+1))
+        # 前向加噪噪声系数
+        self.noise_coef1 = torch.sqrt(self.t)
 
         ## xt->x0 系数
         # self.predict_start_from_noise_coef1 = self.sqrt_a * (self.betas + 1)
-        self.predict_start_from_noise_coef1 = self.betas + 1
+        # self.predict_start_from_noise_coef1 = self.betas + 1
+        self.predict_start_from_noise_coef1 = 1/torch.sqrt(self.betas)
         # self.predict_start_from_noise_coef2 =  1/self.sqrt_a
+
 
         # modify
         # x{t-1} 的方差
+        # b{t-1}
+        self.betas_1 = torch.cat((torch.tensor([1]),self.betas[1:]),dim=0)
+
+
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         self.posterior_variance = (
             #self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
             # self.betas
-            2*(self.betas - 1)/(self.betas ** 2)
+            # 2*(self.betas - 1)/(self.betas ** 2)
+                (self.t * self.betas * self.betas_1) / (self.betas_1 + self.t * self.betas)
         )
 
         # below: log calculation clipped because the posterior variance is 0 at the beginning
@@ -74,20 +88,26 @@ class NBDiffusion:
 
 
         # x{t-1} 的均值系数
+        # x0的系数
         self.posterior_mean_coef1 = (
             # self.betas * torch.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
             # 1/(self.sqrt_a*(self.betas**2))
-            2/(self.betas**2)
+            # 2/(self.betas**2)
+            (self.betas_1*torch.sqrt(self.betas))/(self.betas_1+self.t*self.betas)
 
         )
 
+        # x1的系数
         self.posterior_mean_coef2 = (
             # (1.0 - self.alphas_cumprod_prev)
             # * torch.sqrt(self.alphas)
             # / (1.0 - self.alphas_cumprod)
-            1-(1/(self.betas**2))
-
+            # 1-(1/(self.betas**2))
+            (self.t * torch.sqrt(self.betas*self.betas_1))/(self.betas_1+self.t*self.betas)
         )
+
+
+
 
     # get the param of given timestep t
     @classmethod
@@ -100,21 +120,24 @@ class NBDiffusion:
     # forward diffusion (using the nice property): q(x_t | x_0)
     def q_sample(self, x_start, t, noise=None):
         if noise is None:
-            r_bar_t = self._extract(self.r_bar_s_t, t, x_start.shape)
-            p = self.p
-            noise = torch.distributions.NegativeBinomial(r_bar_t.squeeze(), probs=p).sample(x_start.shape).permute([-1,0,1,2])
-            e_noise_t = self._extract(self.e_noise_s_t, t, x_start.shape)
-            noise_coef1 = self._extract(self.noise_coef1,t,x_start.shape)
+            # r_bar_t = self._extract(self.r_bar_s_t, t, x_start.shape)
+            # p = self.p
+            # noise = torch.distributions.NegativeBinomial(r_bar_t.squeeze(), probs=p).sample(x_start.shape).permute([-1,0,1,2])
+            # e_noise_t = self._extract(self.e_noise_s_t, t, x_start.shape)
+            # noise_coef1 = self._extract(self.noise_coef1,t,x_start.shape)
             # std_noise_t = self._extract(self.std_noise_s_t, t, x_start.shape)
             # # 标准化noise
-            noise = noise_coef1 * (noise - e_noise_t)
+            # noise = noise_coef1 * (noise - e_noise_t)
             # noise = (noise - e_noise_t) / std_noise_t
             # noise = noise
             # noise = (noise - torch.min(noise)) / (torch.max(noise) - torch.min(noise))
+            noise = torch.randn_like(x_start)
 
+        # 前向加噪公式
+        noise_coef1 = self._extract(self.noise_coef1, t, x_start.shape)
         coef1 = self._extract(self.forward_noise_coef1, t, x_start.shape)
         # coef2 = self._extract(self.forward_noise_coef2, t, x_start.shape)
-        return coef1 * x_start + noise
+        return coef1 * (x_start + noise_coef1 *  noise)
 
     # modify
     # Compute the mean and variance of the diffusion posterior: q(x_{t-1} | x_t, x_0)
@@ -130,11 +153,12 @@ class NBDiffusion:
 
     # modify
     # compute x_0 from x_t and pred noise: the reverse of `q_sample`
+    # 反向去噪公式
     def predict_start_from_noise(self, x_t, t, noise):
         return (
             # self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
             # self._extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
-            (self._extract(self.predict_start_from_noise_coef1, t, x_t.shape) * (x_t - noise))
+            (self._extract(self.predict_start_from_noise_coef1, t, x_t.shape) * x_t - self._extract(self.noise_coef1, t, x_t.shape) * noise)
         )
 
     # modify
@@ -170,7 +194,12 @@ class NBDiffusion:
         # # compute x_{t-1}
         model_mean, _, model_log_variance = self.p_mean_variance(model, x_t, t,
                                                     clip_denoised=clip_denoised)
-        noise = torch.randn_like(x_t)
+
+        noise_coef1 = self._extract(self.noise_coef1, t, x_t.shape)
+        # noise = noise_coef1 * torch.randn_like(x_start)
+
+        noise = noise_coef1 * torch.randn_like(x_t)
+
         # pred_img = model_mean + torch.sqrt(model_variance).float() * noise
         pred_img = model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
 
@@ -182,15 +211,16 @@ class NBDiffusion:
         batch_size = shape[0]
         device = next(model.parameters()).device
         # start from pure noise (for each example in the batch)
-        r_bar_t = self.r_bar_s_t[-1]
-        img = torch.distributions.NegativeBinomial(r_bar_t, probs=self.p).sample(shape).float()
-        # print(f"img_shape:{img.shape}")
-        e_noise_t = self.e_noise_s_t[-1]
-        noise_coef1 = self.noise_coef1[-1]
-        # std_noise_t = self.std_noise_s_t[-1]
-        # 标准化noise
-        # img = (img - e_noise_t) / std_noise_t
-        img = noise_coef1 * (img - e_noise_t)
+        # r_bar_t = self.r_bar_s_t[-1]
+        # img = torch.distributions.NegativeBinomial(r_bar_t, probs=self.p).sample(shape).float()
+        # # print(f"img_shape:{img.shape}")
+        # e_noise_t = self.e_noise_s_t[-1]
+        # noise_coef1 = self.noise_coef1[-1]
+        # # std_noise_t = self.std_noise_s_t[-1]
+        # # 标准化noise
+        # # img = (img - e_noise_t) / std_noise_t
+        # img = noise_coef1 * (img - e_noise_t)
+        img = torch.randn(shape).float()
         img = img.to(device)
         #img = img.reshape([-1, shape[0]]).T
         #img = img.reshape(shape) - self.kappas_cumsum[-1] * self.thetas[-1]
@@ -208,19 +238,21 @@ class NBDiffusion:
     # compute train losses
     def train_losses(self, model, x_start, t):
         # generate random noise
-        r_bar_t = self._extract(self.r_bar_s_t, t, x_start.shape)
-        p = self.p
+        # r_bar_t = self._extract(self.r_bar_s_t, t, x_start.shape)
+        # p = self.p
         # noise = torch.distributions.NegativeBinomial(r_bar_t, probs=p).sample(x_start.shape[1:]).squeeze()
-        noise = torch.distributions.NegativeBinomial(r_bar_t.squeeze(), probs=p).sample(x_start.shape[1:]).permute([-1,0,1,2])
-        e_noise_t = self._extract(self.e_noise_s_t, t, x_start.shape)
-        # std_noise_t = self._extract(self.std_noise_s_t, t, x_start.shape)
-        # 标准化noise
-        # noise = (noise - e_noise_t) / std_noise_t
-        noise_coef1 = self._extract(self.noise_coef1, t, x_start.shape)
-        noise = noise_coef1 * (noise - e_noise_t)
-        # noise = noise.reshape([-1, x_start.shape[0]]).T
-        # noise = noise.reshape(x_start.shape)
+        # noise = torch.distributions.NegativeBinomial(r_bar_t.squeeze(), probs=p).sample(x_start.shape[1:]).permute([-1,0,1,2])
+        # e_noise_t = self._extract(self.e_noise_s_t, t, x_start.shape)
+        # # std_noise_t = self._extract(self.std_noise_s_t, t, x_start.shape)
+        # # 标准化noise
+        # # noise = (noise - e_noise_t) / std_noise_t
+        # noise_coef1 = self._extract(self.noise_coef1, t, x_start.shape)
+        # noise = noise_coef1 * (noise - e_noise_t)
+        # # noise = noise.reshape([-1, x_start.shape[0]]).T
+        # # noise = noise.reshape(x_start.shape)
+        # noise = noise_coef1 * torch.randn_like(x_start)
 
+        noise = torch.randn_like(x_start)
         # get x_t
         x_noisy = self.q_sample(x_start, t, noise=noise)
         predicted_noise = model(x_noisy, t)

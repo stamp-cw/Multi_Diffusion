@@ -1,5 +1,5 @@
 {
-  "root_dir": "C:\\Users\\31409\\PycharmProjects\\Multi_Diffusion",
+  "root_dir": "C:\\Users\\75889\\PycharmProjects\\Multi_Diffusion",
   "logs_dir": "",
   "diffusion_type": "Gamma",
   "experiment_name": "evaluate",
@@ -10,7 +10,7 @@
   },
   "epochs": 10,
   "resume": "False",
-  "checkpoint_path": "C:\\Users\\31409\\PycharmProjects\\Multi_Diffusion\\checkpoints\\checkpoint_server_train_gamma_001_Gamma_False_9.pth",
+  "checkpoint_path": "C:\\Users\\75889\\PycharmProjects\\Multi_Diffusion\\checkpoints\\checkpoint_local_train_gamma_001_Gamma_False_0.pth",
   "group_epoch": 1,
   "datasets_type": "mnist"
 }
