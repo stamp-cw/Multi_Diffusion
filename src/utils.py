@@ -23,8 +23,8 @@ def nb_linear_beta_schedule(timesteps):
     # return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
     # return torch.linspace(1, timesteps,timesteps, dtype=torch.float32)
     scale = 1000 / timesteps
-    beta_start = scale * 0.999
-    beta_end = scale * 0.00099995
+    beta_start = scale * 0.99
+    beta_end = scale * 0.001
     # return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
     return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
 
