@@ -188,11 +188,11 @@ class NBDiffusion:
         noise_coef1 = self._extract(self.noise_coef1, t, x_t.shape)
         # noise = noise_coef1 * torch.randn_like(x_start)
 
-        noise = noise_coef1 * torch.randn_like(x_t)
-        # noise = torch.randn_like(x_t)#这里是采样用作的标准高斯噪声
+        # noise = noise_coef1 * torch.randn_like(x_t)
+        noise = torch.randn_like(x_t)#这里是采样用作的标准高斯噪声
 
         # pred_img = model_mean + torch.sqrt(model_variance).float() * noise
-        pred_img = model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
+        pred_img = model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise/noise_coef1
 
         return pred_img
 
