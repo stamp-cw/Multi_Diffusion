@@ -5,7 +5,8 @@ from torchvision import datasets
 import torchvision.transforms as transforms
 
 from src.gamma_diffusion import GammaDiffusion
-from src.gaussian_diffusion import GaussianDiffusion
+# from src.gaussian_diffusion import GaussianDiffusion
+from src.gaussian_nb import GaussianDiffusion
 from src.nb_diffusion import NBDiffusion
 from src.old_nb_diffusion import OLDNBDiffusion
 from src.unet import UNetModel
