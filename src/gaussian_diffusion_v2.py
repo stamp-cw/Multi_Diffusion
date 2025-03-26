@@ -29,20 +29,18 @@ class GaussianDiffusion:
         else:
             raise ValueError(f'unknown beta schedule {beta_schedule}')
         self.betas = betas
-
-        self.a = 2215
+        self.sqrt_betas = torch.sqrt(self.betas)
         self.r=100
-
-
         self.t = torch.linspace(1, timesteps, timesteps, dtype=torch.float32)#t是步数，1到1000
-
+        self.t_prev = F.pad(self.t[:-1], (1, 0), value=1.)
         self.r_bar = self.r * self.t
         self.u =  self.r * self.t
-
-
         self.betas_cumprod=torch.cumprod(self.betas, axis=0)
         # self.alphas = 1. - self.betas
         self.alphas = 1 * self.betas_cumprod
+        self.alphas_prev = F.pad(self.alphas[:-1], (1, 0), value=1.)
+        self.sqrt_a1000=(self.alphas[-1])**0.5
+
         # self.alphas_cumprod = torch.cumprod(self.alphas, axis=0)
         self.alphas_cumprod = self.alphas
         self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.)
@@ -71,7 +69,8 @@ class GaussianDiffusion:
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         self.posterior_variance = (
-            self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+            # self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+            (self.alphas_prev*self.t_prev) / (self.alphas[-1]*1000*self.t)
             # self.betas
         )
         # below: log calculation clipped because the posterior variance is 0 at the beginning
@@ -79,12 +78,15 @@ class GaussianDiffusion:
         self.posterior_log_variance_clipped = torch.log(self.posterior_variance.clamp(min=1e-20))
 
         self.posterior_mean_coef1 = (
-                self.betas * torch.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+                # self.betas * torch.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+                self.alphas_prev/self.t
         )
         self.posterior_mean_coef2 = (
-                (1.0 - self.alphas_cumprod_prev)
-                * torch.sqrt(self.alphas)
-                / (1.0 - self.alphas_cumprod)
+                # (1.0 - self.alphas_cumprod_prev)
+                # * torch.sqrt(self.alphas)
+                # / (1.0 - self.alphas_cumprod)
+                #
+            (self.t_prev)/(self.t*self.sqrt_betas)
         )
 
     # get the param of given timestep t
@@ -101,9 +103,7 @@ class GaussianDiffusion:
             u_t = self._extract(self.u, t, x_start.shape)
             # noise = torch.randn_like(x_start)
             noise = torch.distributions.Poisson(r_bar_t.squeeze()).sample(x_start.shape).permute([-1,0,1,2])
-            sqrt_alphas_t = self._extract(self.sqrt_alphas, t, x_start.shape)
-            sqrt_one_minus_alphas_t = self._extract(self.sqrt_one_minus_alphas, t, x_start.shape)
-            noise = (sqrt_alphas_t * (noise-u_t))/(self.a*sqrt_one_minus_alphas_t)
+            noise = (noise-u_t)/(self.sqrt_a1000*(10**2.5))
 
             # kappas_cumsum_t = self._extract(self.kappas_cumsum, t, x_start.shape)
             # thetas_t = self._extract(self.thetas, t, x_start.shape)
@@ -113,11 +113,10 @@ class GaussianDiffusion:
         # sqrt_alphas_cumprod_t = self._extract(self.sqrt_alphas_cumprod, t, x_start.shape)
         sqrt_alphas_t = self._extract(self.sqrt_alphas, t, x_start.shape)
         # sqrt_one_minus_alphas_cumprod_t = self._extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
-        sqrt_one_minus_alphas_t = self._extract(self.sqrt_one_minus_alphas, t, x_start.shape)
-
+        # sqrt_one_minus_alphas_t = self._extract(self.sqrt_one_minus_alphas, t, x_start.shape)
         # return sqrt_alphas_cumprod_t * x_start + noise - kappas_cumsum_thetas_t
         # return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
-        return sqrt_alphas_t * x_start + sqrt_one_minus_alphas_t * noise
+        return sqrt_alphas_t * x_start + sqrt_alphas_t * noise
 
     # Get the mean and variance of q(x_t | x_0).
     def q_mean_variance(self, x_start, t):
@@ -233,12 +232,18 @@ class GaussianDiffusion:
     def train_losses(self, model, x_start, t):
         # generate random noise
         # noise = torch.randn_like(x_start)
+        # r_bar_t = self._extract(self.r_bar, t, x_start.shape)
+        # u_t = self._extract(self.u, t, x_start.shape)
+        # noise = torch.distributions.Poisson(r_bar_t.squeeze()).sample(x_start.shape).permute([-1,0,1,2])
+        # sqrt_alphas_t = self._extract(self.sqrt_alphas, t, x_start.shape)
+        # sqrt_one_minus_alphas_t = self._extract(self.sqrt_one_minus_alphas, t, x_start.shape)
+        # noise = (sqrt_alphas_t * (noise-u_t))/(self.a*sqrt_one_minus_alphas_t)
+
         r_bar_t = self._extract(self.r_bar, t, x_start.shape)
         u_t = self._extract(self.u, t, x_start.shape)
-        noise = torch.distributions.Poisson(r_bar_t.squeeze()).sample(x_start.shape).permute([-1,0,1,2])
-        sqrt_alphas_t = self._extract(self.sqrt_alphas, t, x_start.shape)
-        sqrt_one_minus_alphas_t = self._extract(self.sqrt_one_minus_alphas, t, x_start.shape)
-        noise = (sqrt_alphas_t * (noise-u_t))/(self.a*sqrt_one_minus_alphas_t)
+        # noise = torch.randn_like(x_start)
+        noise = torch.distributions.Poisson(r_bar_t.squeeze()).sample(x_start.shape).permute([-1, 0, 1, 2])
+        noise = (noise - u_t) / (self.sqrt_a1000 * (10 ** 2.5))
 
         # sqrt_one_minus_alphas_cumprod_t = self._extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
         # kappas_cumsum_t = self._extract(self.kappas_cumsum, t, x_start.shape)
