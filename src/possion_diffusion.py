@@ -30,6 +30,9 @@ class NBDiffusion:
 
 
         # modify
+        # self.c = 1
+        # self.c = 1.4 * (10 ** 13)
+        self.c = 0.4845
         self.r = 100
         self.t = torch.linspace(1, timesteps, timesteps, dtype=torch.float32)#t是步数，1到1000
         self.t_prev = F.pad(self.t[:-1], (1, 0), value=0)
@@ -55,13 +58,13 @@ class NBDiffusion:
         # x0 系数
         self.forward_noise_coef1 = torch.sqrt(self.beta/self.beta_zero)
         # noise系数
-        self.forward_noise_coef2 = self.sqrt_alpha
+        self.forward_noise_coef2 = self.c *  self.sqrt_alpha
 
         # xt-->x0
         # xt 系数
         self.predict_start_from_noise_coef1 = torch.sqrt(self.beta_zero/self.beta)
         # noise 系数
-        self.predict_start_from_noise_coef2 = torch.sqrt(self.beta_zero * self.t)
+        self.predict_start_from_noise_coef2 = self.c * torch.sqrt(self.beta_zero * self.t)
 
         # 计算后验分布q(x_{t-1} | x_t, x_0)
         self.posterior_variance = (
@@ -70,7 +73,7 @@ class NBDiffusion:
             # 2*(self.betas - 1)/(self.betas ** 2)
             # (self.t * self.betas * self.betas_1) / (self.betas_1 + self.t * self.betas)
             # ((self.alpha_prev ** 2)*(self.t ** 2))/((self.alpha*(self.t_prev**4))+(self.t**2)*self.alpha_prev)
-            self.alpha_prev/self.t
+                ((self.c ** 2)*self.alpha_prev)/self.t
         )#后验方差
 
         # below: log calculation clipped because the posterior variance is 0 at the beginning
@@ -85,7 +88,7 @@ class NBDiffusion:
             # 1/(self.sqrt_a*(self.betas**2))
             # 2/(self.betas**2)
             # (self.betas_1*torch.sqrt(self.betas))/(self.betas_1+self.t*self.betas)
-            self.posterior_variance / torch.sqrt(self.alpha_prev * self.t_prev)
+            self.posterior_variance / (torch.sqrt(self.alpha_prev * self.t_prev)* (self.c**2))
 
         )
 
@@ -97,7 +100,7 @@ class NBDiffusion:
             # 1-(1/(self.betas**2))
             # (self.t * torch.sqrt(self.betas*self.betas_1))/(self.betas_1+self.t*self.betas)
             # ((self.t_prev**2)*self.posterior_variance)/self.alpha_prev
-            self.posterior_variance / torch.sqrt(self.beta_prev * self.beta)
+            self.posterior_variance / (torch.sqrt(self.beta_prev * self.beta)* (self.c**2))
         )
 
 
