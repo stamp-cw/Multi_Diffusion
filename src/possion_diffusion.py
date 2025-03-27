@@ -27,7 +27,7 @@ class NBDiffusion:
         #     betas = sqrt_beta_schedule(timesteps)
         else:
             raise ValueError(f'unknown beta schedule {beta_schedule}')
-        # self.betas = betas
+
 
         # modify
         self.r = 100
@@ -38,11 +38,14 @@ class NBDiffusion:
         self.d_n = self.r * self.t
         self.std_n = torch.sqrt(self.d_n)
         # self.alpha = (self.t ** 2) / (1 + self.t ** 2)
-        self.alpha = (self.t) / (1 + self.t)
+        self.seq = 0.9 - (0.1*self.t)/(self.t+1)
+        self.seq_cumprod = torch.cumprod(self.seq, axis=0)
+        # self.alpha = (self.t) / (1 + self.t)
+        self.alpha = self.t * self.seq_cumprod
         self.sqrt_alpha = torch.sqrt(self.alpha)
         self.alpha_zero = 0.
         self.alpha_prev = F.pad(self.alpha[:-1], (1, 0), value=self.alpha_zero)
-        self.beta = self.alpha / (self.t)
+        self.beta = self.alpha / self.t
         self.beta_zero = 1.
         self.beta_prev = F.pad(self.beta[:-1], (1, 0), value=self.beta_zero)
         self.gamma = self.beta / self.beta_prev
