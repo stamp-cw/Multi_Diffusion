@@ -192,13 +192,13 @@ class OGammaDiffusion:
             [-1, 0, 1, 2])
 
         noise = noise - kappas_cumsum_thetas_t
+        # noise = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape) * noise
         noise = noise.reshape([-1, x_start.shape[0]]).T
         noise = noise.reshape(x_start.shape)
 
         # get x_t
         x_noisy = self.q_sample(x_start, t, noise=noise)
         predicted_noise = model(x_noisy, t)
-        loss = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape) * F.mse_loss(noise, predicted_noise)
-        loss = loss.mean()
+        loss =  F.mse_loss(self.sqrt_recip_one_minus_alphas_cumprod*noise, self.sqrt_recip_one_minus_alphas_cumprod*predicted_noise)
         # loss = F.mse_loss(noise, predicted_noise)
         return loss
