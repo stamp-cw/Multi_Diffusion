@@ -67,5 +67,11 @@ class MyTestCase(unittest.TestCase):
         self.assertIsNotNone(noise)
         print(noise)
 
+
+    def test_possion_distribution(self):
+        noise = torch.distributions.Poisson(torch.tensor([1,100],dtype=torch.float32)).sample([3,32,32]).permute([-1, 0, 1, 2])
+        self.assertIsNotNone(noise)
+        print(noise.shape)
+
 if __name__ == '__main__':
     unittest.main()

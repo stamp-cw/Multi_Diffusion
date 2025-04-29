@@ -12,5 +12,5 @@
   "resume": "False",
   "checkpoint_path": "",
   "group_epoch": 1,
-  "datasets_type": "mnist"
+  "datasets_type": "celebA"
 }

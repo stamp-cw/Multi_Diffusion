@@ -40,6 +40,8 @@ def train(config):
     group_epoch = config['group_epoch']  # 多少个epoch 为一组 ，用于记录
     RESUME = True if config['resume']=="True" else False
     diffusion_type=config['diffusion_type']
+    exper_name = f"{config['datasets_type']}_{config['datasets_type']}_{config['epochs']}"
+
 
     diffusion_dict = {
         "Binomial":BinomialDiffusion,
@@ -84,6 +86,24 @@ def train(config):
         dataset = datasets.MNIST(rf"{root_dir}/data", train=True, download=True, transform=transform)
         dataset_channel = 1
         dataset_image_size = 32
+    elif datasets_type == "celebA":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.CenterCrop(178),  # 先裁剪成正方形
+            # transforms.Resize(128),  # 缩放到128×128
+            transforms.Resize(64),  # 缩放到64×64
+            transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+        dataset = datasets.CelebA(
+            rf"{root_dir}/data",
+            split="train",
+            transform=transform,
+            download=True,
+        )
+        dataset_channel = 3
+        dataset_image_size = 64
+
     else:
         dataset = None
         dataset_channel = None
@@ -160,7 +180,7 @@ def train(config):
                 "model_state_dict": unet_model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
             }
-            torch.save(check_point, rf"{root_dir}/checkpoints/checkpoint_{experiment_name}_{diffusion_type}_{RESUME}_{epoch}.pth")
+            torch.save(check_point, rf"{root_dir}/checkpoints/checkpoint_train_{exper_name}_{RESUME}_{epoch+1}.pth")
 
             # 绘图,采样4张图
             generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))

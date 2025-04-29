@@ -1,8 +1,8 @@
 {
   "root_dir": "/home/featurize/Multi_Diffusion",
   "logs_dir": "/home/featurize/Multi_Diffusion/logs",
-  "diffusion_type": "Gamma",
-  "experiment_name": "train_Gamma_001",
+  "diffusion_type": "Gaussian",
+  "experiment_name": "evaluate_Gaussian_mnist_10_001",
   "model_config": {
     "batch_size": 128,
     "timesteps": 1000,
@@ -10,7 +10,8 @@
   },
   "epochs": 10,
   "resume": "False",
-  "checkpoint_path": "",
+  "checkpoint_path": "/home/featurize/Multi_Diffusion/checkpoints/checkpoint_train_Gaussian_mnist_10_001_False_10.pth",
   "group_epoch": 1,
-  "datasets_type": "mnist"
+  "datasets_type": "mnist",
+  "eval_subprocess": ["fid"]
 }

@@ -5,6 +5,7 @@ import os.path
 import numpy
 import torch
 import torch_fidelity
+from sympy import false
 from torch.utils.data import RandomSampler
 from torchvision.utils import save_image
 import torchvision.transforms as transforms
@@ -301,8 +302,9 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
     for i in range(img_num):
         random_idx = next(iter(sampler))
         image, label = dataset[random_idx]
-
-        save_image(image, rf"{config['root_dir']}/data/fid/real/real_{i}.png")
+        t_real_dir = rf"{config['root_dir']}/data/fid_{config['exper_name']}/real"
+        os.makedirs(t_real_dir,exist_ok=True)
+        save_image(image, rf"{t_real_dir}/real_{i}.png")
 
     # 获取生成图像
     n = 1
@@ -311,7 +313,9 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
         for i in range(64):
             if n <= img_num:
                 img = transforms.ToTensor()((generated_images[-1][i].transpose([1, 2, 0]) + 1) / 2)
-                save_image(img, rf"{config['root_dir']}/data/fid/gen/gen_{n}.png")
+                t_gen_dir = rf"{config['root_dir']}/data/fid_{config['exper_name']}/gen"
+                os.makedirs(t_gen_dir, exist_ok=True)
+                save_image(img, rf"{t_gen_dir}/gen_{n}.png")
                 n += 1
             if n % (img_num/10) == 0:
                 print(f"已生成{n}个图像")
@@ -325,7 +329,7 @@ def calc_fid(real_img_dir,gen_img_dir):
         input2=gen_img_dir,
         cuda=True,
         fid=True,
-        kid=True,
+        # kid=True,
         isc=True,
         verbose=True,
     )

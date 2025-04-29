@@ -1,8 +1,8 @@
 {
   "root_dir": "/home/featurize/Multi_Diffusion",
   "logs_dir": "/home/featurize/Multi_Diffusion/logs",
-  "diffusion_type": "Gamma",
-  "experiment_name": "train_Gamma_001",
+  "diffusion_type": "OGamma",
+  "experiment_name": "train_OGamma_celebA_10_001",
   "model_config": {
     "batch_size": 128,
     "timesteps": 1000,
@@ -12,5 +12,5 @@
   "resume": "False",
   "checkpoint_path": "",
   "group_epoch": 1,
-  "datasets_type": "mnist"
+  "datasets_type": "celebA"
 }

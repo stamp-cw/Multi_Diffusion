@@ -39,7 +39,6 @@ class OGammaDiffusion:
         self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - self.alphas_cumprod)
         self.log_one_minus_alphas_cumprod = torch.log(1.0 - self.alphas_cumprod)
         self.sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / self.alphas_cumprod)
-        self.sqrt_recip_one_minus_alphas_cumprod = torch.sqrt(1.0 / (1.0-self.alphas_cumprod))
         self.sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / self.alphas_cumprod - 1)
 
         # gamma atribute
@@ -198,7 +197,5 @@ class OGammaDiffusion:
         # get x_t
         x_noisy = self.q_sample(x_start, t, noise=noise)
         predicted_noise = model(x_noisy, t)
-        loss = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape) * F.mse_loss(noise, predicted_noise)
-        loss = loss.mean()
-        # loss = F.mse_loss(noise, predicted_noise)
+        loss = F.mse_loss(noise, predicted_noise)
         return loss

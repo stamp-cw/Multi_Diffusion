@@ -44,6 +44,7 @@ def evaluate(config):
     datasets_type = config['datasets_type']
     diffusion_type = config['diffusion_type']
     eval_subprocess = config['eval_subprocess']
+    exper_name = f"{config['datasets_type']}_{config['datasets_type']}_{config['epochs']}"
 
     # 设置训练设备
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -99,7 +100,7 @@ def evaluate(config):
     # 执行eval子流程
     subprocess_dict = {
         'plot':{'func':plot_subprocess,'args':(
-            {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir},
+            {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir,'exper_name':exper_name},
             unet_model,
             diffusion,
             8
@@ -107,7 +108,7 @@ def evaluate(config):
         'fid':{
             'func':fid_subprocess,
             'args':(
-                {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir},
+                {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir,'exper_name':exper_name},
                 unet_model,
                 diffusion,
                 100
