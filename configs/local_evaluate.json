@@ -1,7 +1,7 @@
 {
-  "root_dir": "C:\\Users\\75889\\PycharmProjects\\Multi_Diffusion",
-  "logs_dir": "",
-  "diffusion_type": "Gaussian",
+  "root_dir": "D:\\Project\\Multi_Diffusion",
+  "logs_dir": "D:\\Project\\Multi_Diffusion\\logs",
+  "diffusion_type": "NBinomial",
   "experiment_name": "evaluate_001",
   "model_config": {
     "batch_size": 128,
@@ -13,5 +13,5 @@
   "checkpoint_path": "D:\\Project\\Multi_Diffusion\\checkpoints\\checkpoint_nb0012_NB_False_9.pth",
   "group_epoch": 1,
   "datasets_type": "mnist",
-  "eval_subprocess": ["plot","fid"]
+  "eval_subprocess": ["fid"]
 }

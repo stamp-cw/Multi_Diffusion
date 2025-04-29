@@ -1,5 +1,6 @@
 import json
 import math
+import os.path
 
 import numpy
 import torch
@@ -284,7 +285,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ])
         datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
-        dataset = datasets.CIFAR10(rf"./data", train=True, download=True, transform=transform)
+        dataset = datasets.CIFAR10(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
     elif config['type'] == "mnist":
         transform = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
@@ -295,12 +296,13 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
         datasets.MNIST.mirrors = [
             "https://dufs.v-v.icu/mnist/",
         ]
-        dataset = datasets.MNIST(rf"./data", train=True, download=True, transform=transform)
+        dataset = datasets.MNIST(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
     sampler = RandomSampler(dataset, replacement=False)
     for i in range(img_num):
         random_idx = next(iter(sampler))
         image, label = dataset[random_idx]
-        save_image(image, rf"./data/fid/real/real_{i}.png")
+
+        save_image(image, rf"{config['root_dir']}/data/fid/real/real_{i}.png")
 
     # 获取生成图像
     n = 1
@@ -309,7 +311,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
         for i in range(64):
             if n <= img_num:
                 img = transforms.ToTensor()((generated_images[-1][i].transpose([1, 2, 0]) + 1) / 2)
-                save_image(img, rf"./data/fid/gen/gen_{n}.png")
+                save_image(img, rf"{config['root_dir']}/data/fid/gen/gen_{n}.png")
                 n += 1
             if n % (img_num/10) == 0:
                 print(f"已生成{n}个图像")

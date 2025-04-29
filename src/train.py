@@ -199,7 +199,7 @@ if __name__ == '__main__':
     if args.config:
         config_path = args.config
     else:
-        config_path = rf"C:\Users\31409\PycharmProjects\NB_Diffusioon\configs\train_config.json"
+        config_path = rf"D:\Project\Multi_Diffusion\configs\local_train.json"
 
     train_config = import_config(config_path)
     logs_dir = train_config['logs_dir']

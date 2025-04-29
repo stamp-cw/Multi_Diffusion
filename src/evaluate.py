@@ -29,9 +29,9 @@ def plot_subprocess(config,unet_model,diffusion,img_num):
     paint_images_3(images, img_num)
     return 'ok'
 
-def fid_subprocess(dataset,config,unet_model,diffusion):
-    gen_fid_input(dataset,config,unet_model,diffusion,img_num=100)
-    calc_fid('./data/fid/real','./data/fid/gen')
+def fid_subprocess(config,unet_model,diffusion,img_num=100):
+    gen_fid_input(config,unet_model,diffusion,img_num)
+    calc_fid(rf"{config['root_dir']}/data/fid/real",rf"{config['root_dir']}/data/fid/gen")
     return 'ok'
 
 def evaluate(config):
@@ -99,7 +99,7 @@ def evaluate(config):
     # 执行eval子流程
     subprocess_dict = {
         'plot':{'func':plot_subprocess,'args':(
-            {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel},
+            {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir},
             unet_model,
             diffusion,
             8
@@ -107,7 +107,7 @@ def evaluate(config):
         'fid':{
             'func':fid_subprocess,
             'args':(
-                {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel},
+                {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir},
                 unet_model,
                 diffusion,
                 100
@@ -132,6 +132,6 @@ if __name__ == '__main__':
     if args.config:
         config_path = args.config
     else:
-        config_path = rf"C:\Users\31409\PycharmProjects\Multi_Diffusion\configs\local_evaluate_config.json"
+        config_path = rf"D:\Project\Multi_Diffusion\configs\local_evaluate.json"
     evaluate_config = import_config(config_path)
     evaluate(evaluate_config)
