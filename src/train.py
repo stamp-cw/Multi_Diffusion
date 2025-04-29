@@ -5,7 +5,7 @@ from torchvision import datasets
 import torchvision.transforms as transforms
 
 from src.unet import UNetModel
-from src.utils import import_config, plot_images
+from src.utils import import_config, plot_images, show_8_images_12_denoising_steps
 from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
 import logging
@@ -40,7 +40,8 @@ def train(config):
     group_epoch = config['group_epoch']  # 多少个epoch 为一组 ，用于记录
     RESUME = True if config['resume']=="True" else False
     diffusion_type=config['diffusion_type']
-    exper_name = f"{config['datasets_type']}_{config['datasets_type']}_{config['epochs']}"
+    # exper_name = f"{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}"
+    exper_name = f"{config['experiment_name']}"
 
 
     diffusion_dict = {
@@ -125,7 +126,6 @@ def train(config):
     # 设置优化器
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=2e-4)
 
-
     # 是否继续训练
     start_epoch = -1
 
@@ -180,35 +180,14 @@ def train(config):
                 "model_state_dict": unet_model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
             }
-            torch.save(check_point, rf"{root_dir}/checkpoints/checkpoint_train_{exper_name}_{RESUME}_{epoch+1}.pth")
+            torch.save(check_point, rf"{root_dir}/checkpoints/{exper_name}_{RESUME}_{epoch+1}.pth")
 
             # 绘图,采样4张图
             generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
-            img_num = 8
-            fig = plt.figure(figsize=(img_num * 2, img_num + 2), constrained_layout=True)
-            gs = fig.add_gridspec(img_num * 2, img_num + 2)
-            t_idx = [x * (timesteps // img_num) for x in range(img_num)]
-            t_idx[-1] = timesteps - 11
-            t_idx.append(timesteps - 2)
-            t_idx.append(timesteps - 1)
-            for n_row in range(img_num):
-                for n_col in range(img_num + 2):
-                    f_ax = fig.add_subplot(gs[n_row, n_col])
-                    img = torch.tensor(generated_images[t_idx[n_col], n_row]).permute([1, 2, 0])
-                    # img = numpy.array((img - img.min()) / (img.max() - img.min()), dtype=numpy.uint8)
-                    img = numpy.array((img + 1.0) * 255 / 2, dtype=numpy.uint8)
-                    f_ax.imshow(img)
-                    f_ax.axis("off")
-            for n_row in range(img_num, img_num * 2):
-                for n_col in range(img_num + 2):
-                    f_ax = fig.add_subplot(gs[n_row, n_col])
-                    img = torch.tensor(generated_images[t_idx[n_col], n_row - img_num]).permute([1, 2, 0])
-                    img = numpy.array(((img - img.min()) / (img.max() - img.min())) * 255, dtype=numpy.uint8)
-                    # img = numpy.array((img + 1.0) * 255 / 2, dtype=numpy.uint8)
-                    f_ax.imshow(img)
-                    f_ax.axis("off")
+            fig = show_8_images_12_denoising_steps(generated_images)
             writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig)
             plt.close()
+
 
 if __name__ == '__main__':
     # 获取命令行参数
@@ -226,7 +205,7 @@ if __name__ == '__main__':
     logs_dir = train_config['logs_dir']
     experiment_name = train_config["experiment_name"]
     # tensorboar 记录
-    writer = SummaryWriter(rf'{logs_dir}/experiment_{experiment_name}')
+    writer = SummaryWriter(rf'{logs_dir}/{experiment_name}')
     # 开始训练
     train(train_config)
     # 结尾工作

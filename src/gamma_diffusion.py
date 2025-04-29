@@ -172,10 +172,27 @@ class GammaDiffusion:
             imgs.append(img.cpu().numpy())
         return imgs
 
+    @torch.no_grad()
+    def p_sample_loopA(self, model,img,shape):
+        batch_size = shape[0]
+        device = next(model.parameters()).device
+        img = img.to(device)
+        imgs = []
+        for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
+            img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long))
+            imgs.append(img.cpu().numpy())
+        return imgs
+
     # sample new images
     @torch.no_grad()
     def sample(self, model, image_size, batch_size=8, channels=3):
         return self.p_sample_loop(model, shape=(batch_size, channels, image_size, image_size))
+
+    @torch.no_grad()
+    def sampleA(self, model, image_size, img, batch_size=8, channels=3):
+
+        img = self.q_sample(img, torch.full((batch_size,), 999, dtype=torch.long))
+        return self.p_sample_loopA(model, img, shape=(batch_size, channels, image_size, image_size))
 
     # compute train losses
     def train_losses(self, model, x_start, t):

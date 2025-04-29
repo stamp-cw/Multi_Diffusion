@@ -10,7 +10,7 @@
   },
   "epochs": 10,
   "resume": "False",
-  "checkpoint_path": "/home/featurize/Multi_Diffusion/checkpoints/checkpoint_train_OGamma_cifar10_10_001_False_10.pth",
+  "checkpoint_path": "/home/featurize/Multi_Diffusion/checkpoints/train_OGamma_cifar10_10_001_False_10.pth",
   "group_epoch": 1,
   "datasets_type": "mnist",
   "eval_subprocess": ["fid"]

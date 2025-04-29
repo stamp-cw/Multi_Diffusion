@@ -2,11 +2,14 @@ import argparse
 import os
 
 import torch
+import torchvision
 #import torch_fidelity
+from tensorboardX import SummaryWriter
 from sympy.stats.sampling.sample_numpy import numpy
 import torchvision.transforms as transforms
 from src.unet import UNetModel
-from src.utils import import_config, gen_fid_input
+from src.utils import import_config, gen_fid_input, show_64_images, show_8_images_12_denoising_steps, \
+    show_8_images_raw_and_denoise, get_raw_images
 from torchvision import datasets
 import matplotlib.pyplot as plt
 
@@ -25,13 +28,35 @@ from src.optimize_gamma_diffusion import OGammaDiffusion
 ####################################################################################################
 
 def plot_subprocess(config,unet_model,diffusion,img_num):
+
     images = torch.tensor(diffusion.sample(unet_model, config['image_size'], batch_size=64, channels=config['channel']))
-    paint_images_3(images, img_num)
+    fig_one = show_64_images(images, step=1000)
+    writer.add_figure(rf"show_64_images.png", fig_one)
+
+    fig_two = show_8_images_12_denoising_steps(images)
+    writer.add_figure(rf"show_8_images_12_denoising_steps.png", fig_two)
+
+    raw_images = get_raw_images(config)
+    denoise_images = diffusion.sampleA(unet_model, 32, raw_images, 128, 1)
+    fig_three = show_8_images_raw_and_denoise(raw_images, denoise_images, step=1000)
+    writer.add_figure(rf"show_8_images_raw_and_denoise.png", fig_three)
+
+    random_images_grid = torchvision.utils.make_grid(images)
+    raw_images_grid = torchvision.utils.make_grid(raw_images)
+    denoise_images_grid = torchvision.utils.make_grid(denoise_images)
+
+    writer.add_image('random_images_grid', random_images_grid, 0)
+    writer.add_image('raw_images_grid', raw_images_grid, 0)
+    writer.add_image('denoise_images_grid', denoise_images_grid, 0)
+
+
     return 'ok'
 
 def fid_subprocess(config,unet_model,diffusion,img_num=100):
     gen_fid_input(config,unet_model,diffusion,img_num)
-    calc_fid(rf"{config['root_dir']}/data/fid/real",rf"{config['root_dir']}/data/fid/gen")
+    metrics_dict = calc_fid(rf"{config['root_dir']}/data/fid/{config['exper_name']}/real",rf"{config['root_dir']}/data/fid/{config['exper_name']}/gen")
+    writer.add_scalar(rf'fid/evaluate', metrics_dict['frechet_inception_distance'], 100)
+
     return 'ok'
 
 def evaluate(config):
@@ -44,7 +69,10 @@ def evaluate(config):
     datasets_type = config['datasets_type']
     diffusion_type = config['diffusion_type']
     eval_subprocess = config['eval_subprocess']
-    exper_name = f"{config['datasets_type']}_{config['datasets_type']}_{config['epochs']}"
+    # exper_name = f"{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}"
+    exper_name = f"{config['experiment_name']}"
+    batch_size = config['model_config']['batch_size']
+
 
     # 设置训练设备
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -97,6 +125,8 @@ def evaluate(config):
     # generate_image(diffusion,unet_model,img_num=3)
     # images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
 
+    writer.add_graph(unet_model, torch.randn(batch_size,dataset_channel,dataset_image_size,dataset_image_size))
+
     # 执行eval子流程
     subprocess_dict = {
         'plot':{'func':plot_subprocess,'args':(
@@ -135,4 +165,11 @@ if __name__ == '__main__':
     else:
         config_path = rf"D:\Project\Multi_Diffusion\configs\local_evaluate.json"
     evaluate_config = import_config(config_path)
+    logs_dir = evaluate_config['logs_dir']
+    experiment_name = evaluate_config["experiment_name"]
+
+    # tensorboar 记录
+    writer = SummaryWriter(rf'{logs_dir}/{experiment_name}')
     evaluate(evaluate_config)
+    # 结尾工作
+    writer.close()

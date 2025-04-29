@@ -207,6 +207,7 @@ def paint_images_2(imgs,img_num=8,time_steps=1000):
             img = torch.tensor(imgs[t_idx[n_col],n_row]).permute([1,2,0])
             # img = numpy.array((img - img.min()) / (img.max() - img.min()), dtype=numpy.uint8)
             img = numpy.array((img + 1.0) * 255 / 2, dtype=numpy.uint8)
+
             f_ax.imshow(img)
             f_ax.axis("off")
     plt.show()
@@ -237,42 +238,97 @@ def paint_images_3(imgs,img_num=8,time_steps=1000):
             f_ax.axis("off")
     plt.show()
 
-# def paint_images_4(imgs,img_num=8,time_steps=1000):
-#
-#     transform = transforms.Compose([
-#         transforms.RandomHorizontalFlip(p=0.5),
-#         transforms.Pad(padding=2),
-#         transforms.ToTensor(),
-#         transforms.Normalize(mean=[0.5], std=[0.5]),
-#     ])
-#     root_dir=rf"D:\Project\Multi_Diffusion"
-#     dataset = datasets.MNIST(rf"{root_dir}/data", train=True, download=True, transform=transform)
-#     dataset_channel = 1
-#     dataset_image_size = 32
-#
-#     train_loader = torch.utils.data.DataLoader(dataset, batch_size=128, shuffle=True)
-#     images, labels = next(iter(train_loader))
-#     # 画图
-#     fig = plt.figure(figsize=(img_num*2, img_num+2), constrained_layout=True)
-#     gs = fig.add_gridspec(img_num*2, img_num+2)
-#     for row in range(16):
-#         f_one = fig.add_subplot(gs[row, 1])
-#         img1 = images[16+row].permute([1, 2, 0])
-#         f_one.imshow(img1)
-#         f_one.axis("off")
-#         f_two = fig.add_subplot(gs[row, 2])
-#         img2 = torch.tensor(imgs[998][16+row]).permute([1, 2, 0])
-#         # img = numpy.array((img - img.min()) / (img.max() - img.min()), dtype=numpy.uint8)
-#         img2 = numpy.array((img2 + 1.0) * 255 / 2, dtype=numpy.uint8)
-#         f_two.imshow(img2)
-#         f_two.axis("off")
-#         f_three = fig.add_subplot(gs[row, 3])
-#         img3 = torch.tensor(imgs[998][16+row]).permute([1, 2, 0])
-#         img3 = numpy.array(((img3 - img3.min()) / (img3.max() - img3.min())) * 255, dtype=numpy.uint8)
-#         # img = numpy.array((img + 1.0) * 255 / 2, dtype=numpy.uint8)
-#         f_three.imshow(img3)
-#         f_three.axis("off")
-#     plt.show()
+
+####################################################################################################
+# 新画图
+####################################################################################################
+
+
+def show_64_images(images,step=1000):
+    '''
+    images: shape --> 1000,64,32,32
+    '''
+    fig = plt.figure(figsize=(8, 8), constrained_layout=True)
+    gs = fig.add_gridspec(8, 8)
+    imgs = images[step-1].reshape(1, 64, 1, 32, 32)
+    for n_row in range(8):
+        for n_col in range(8):
+            f_ax = fig.add_subplot(gs[n_row, n_col])
+            img = imgs[0, n_row * 8 + n_col].transpose([1, 2, 0])
+            img = numpy.array(
+                ( (img - img.min()) / ( img.max() - img.min() ) )*255,
+                dtype=numpy.uint8
+            )
+            f_ax.imshow(img)
+            f_ax.axis("off")
+    return fig
+
+
+
+def show_8_images_12_denoising_steps(images):
+    '''
+    images: shape --> 1000,64,32,32
+    step : 1000
+    '''
+    fig = plt.figure(figsize=(8, 12), constrained_layout=True)
+    gs = fig.add_gridspec(8, 12)
+    t_idx = [0,50,100,200,400,600,800,900,970,990,998,999]
+
+    for n_row in range(8):
+        for n_col in range(12):
+            f_ax = fig.add_subplot(gs[n_row, n_col])
+            img = torch.tensor(images[t_idx[n_col],n_row * 8]).permute([1,2,0])
+            img = numpy.array(
+                ( (img - img.min()) / ( img.max() - img.min() ) )*255,
+                dtype=numpy.uint8
+            )
+            f_ax.imshow(img)
+            f_ax.axis("off")
+
+    return fig
+
+
+def show_8_images_raw_and_denoise(raw_images,denoise_images,step=1000):
+    '''
+    raw_images = 64,32,32
+    denoise_images: shape --> 1000,64,32,32
+    '''
+    fig = plt.figure(figsize=(8, 4), constrained_layout=True)
+    gs = fig.add_gridspec(8, 4)
+    for row in range(8):
+        f_col_zero = fig.add_subplot(gs[row, 0])
+        image_zero = raw_images[row*8].permute([1, 2, 0])
+        f_col_zero.imshow(image_zero)
+        f_col_zero.axis("off")
+
+        # 绘制直方图
+        f_col_one = fig.add_subplot(gs[row, 1])
+        if len(image_zero.shape) == 3:
+            for c, color in enumerate(['red', 'green', 'blue']):
+                hist_data = image_zero[:, :, c].ravel()  # 展平通道数据
+                f_col_one.hist(hist_data, bins=256, color=color, alpha=0.5, label=color)
+            f_col_one.legend()
+        else:  # 灰度图像
+            f_col_one.hist(image_zero.ravel(), bins=256, color='black', alpha=0.7)
+        f_col_one.axis("off")
+
+        f_col_two = fig.add_subplot(gs[row, 2])
+        image_two = torch.tensor(denoise_images[step-1][row*8]).permute([1, 2, 0])
+        f_col_two.imshow(image_two)
+        f_col_two.axis("off")
+
+        # 绘制直方图
+        f_col_three = fig.add_subplot(gs[row, 3])
+        if len(image_two.shape) == 3:
+            for c, color in enumerate(['red', 'green', 'blue']):
+                hist_data = image_two[:, :, c].ravel()  # 展平通道数据
+                f_col_three.hist(hist_data, bins=256, color=color, alpha=0.5, label=color)
+            f_col_three.legend()
+        else:  # 灰度图像
+            f_col_three.hist(image_two.ravel(), bins=256, color='black', alpha=0.7)
+        f_col_three.axis("off")
+    return fig
+
 
 ####################################################################################################
 # 计算FID
@@ -298,11 +354,27 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             "https://dufs.v-v.icu/mnist/",
         ]
         dataset = datasets.MNIST(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
+    elif config['type'] == "celebA":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.CenterCrop(178),  # 先裁剪成正方形
+            # transforms.Resize(128),  # 缩放到128×128
+            transforms.Resize(64),  # 缩放到64×64
+            transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+        dataset = datasets.CelebA(
+            rf"{config['root_dir']}/data",
+            split="train",
+            transform=transform,
+            download=True,
+        )
+
     sampler = RandomSampler(dataset, replacement=False)
     for i in range(img_num):
         random_idx = next(iter(sampler))
         image, label = dataset[random_idx]
-        t_real_dir = rf"{config['root_dir']}/data/fid_{config['exper_name']}/real"
+        t_real_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}/real"
         os.makedirs(t_real_dir,exist_ok=True)
         save_image(image, rf"{t_real_dir}/real_{i}.png")
 
@@ -313,7 +385,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
         for i in range(64):
             if n <= img_num:
                 img = transforms.ToTensor()((generated_images[-1][i].transpose([1, 2, 0]) + 1) / 2)
-                t_gen_dir = rf"{config['root_dir']}/data/fid_{config['exper_name']}/gen"
+                t_gen_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}/gen"
                 os.makedirs(t_gen_dir, exist_ok=True)
                 save_image(img, rf"{t_gen_dir}/gen_{n}.png")
                 n += 1
@@ -334,8 +406,49 @@ def calc_fid(real_img_dir,gen_img_dir):
         verbose=True,
     )
     print(metrics_dict)
+    return metrics_dict
 
 
+
+
+def get_raw_images(config):
+    # 获取real图像
+    if config['type'] == "cifar10":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+        datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
+        dataset = datasets.CIFAR10(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
+    elif config['type'] == "mnist":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.Pad(padding=2),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5]),
+        ])
+        datasets.MNIST.mirrors = [
+            "https://dufs.v-v.icu/mnist/",
+        ]
+        dataset = datasets.MNIST(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
+    elif config['type'] == "celebA":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.CenterCrop(178),  # 先裁剪成正方形
+            # transforms.Resize(128),  # 缩放到128×128
+            transforms.Resize(64),  # 缩放到64×64
+            transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+        dataset = datasets.CelebA(
+            rf"{config['root_dir']}/data",
+            split="train",
+            transform=transform,
+            download=True,
+        )
+
+    return [dataset[i][0] for i in range(64)]
 
 
 
