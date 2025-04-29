@@ -36,9 +36,9 @@ def negative_binomial_linear_beta_schedule(timesteps):
 
 def gaussian_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
-    beta_start = scale * 0.1
-    beta_end = scale * 0.2
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    beta_start = scale * 0.0001
+    beta_end = scale * 0.02
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def gamma_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
@@ -323,8 +323,10 @@ def calc_fid(real_img_dir,gen_img_dir):
     metrics_dict = torch_fidelity.calculate_metrics(
         input1=real_img_dir,
         input2=gen_img_dir,
+        cuda=True,
         fid=True,
         kid=True,
+        isc=True,
         verbose=True,
     )
     print(metrics_dict)

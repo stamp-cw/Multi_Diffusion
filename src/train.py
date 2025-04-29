@@ -79,6 +79,7 @@ def train(config):
         ])
         datasets.MNIST.mirrors = [
             "https://dufs.v-v.icu/mnist/",
+            "https://ossci-datasets.s3.amazonaws.com/mnist/"
         ]
         dataset = datasets.MNIST(rf"{root_dir}/data", train=True, download=True, transform=transform)
         dataset_channel = 1
