@@ -1,38 +1,35 @@
 import torch
 from tqdm import tqdm
 import torch.nn.functional as F
-from src.utils import linear_beta_schedule, nb_linear_beta_schedule
+from src.utils import linear_beta_schedule, cosine_beta_schedule, sigmoid_beta_schedule, sqrt_beta_schedule,possion_linear_beta_schedule
 
 
 ####################################################################################################
-# NBDiffusion
+# PossionDiffusion
 ####################################################################################################
-class NBDiffusion:
+class PossionDiffusion:
     def __init__(
         self,
         timesteps=1000,
         beta_schedule='linear'
     ):
         self.timesteps = timesteps
-
-
         if beta_schedule == 'linear':
-            # betas = torch.linspace(1, timesteps,timesteps, dtype=torch.float64)
-            betas = nb_linear_beta_schedule(timesteps) # 此处betas 就是bt,为了方便没有改
-        # elif beta_schedule == 'cosine':
-        #     betas = cosine_beta_schedule(timesteps)
-        # elif beta_schedule == 'sigmoid':
-        #     betas = sigmoid_beta_schedule(timesteps)
-        # elif beta_schedule == 'sqrt':
-        #     betas = sqrt_beta_schedule(timesteps)
+            # sch 是原DDPM betas
+            sch = possion_linear_beta_schedule(timesteps)
+        elif beta_schedule == 'cosine':
+            sch = cosine_beta_schedule(timesteps)
+        elif beta_schedule == 'sigmoid':
+            sch = sigmoid_beta_schedule(timesteps)
+        elif beta_schedule == 'sqrt':
+            sch = sqrt_beta_schedule(timesteps)
         else:
             raise ValueError(f'unknown beta schedule {beta_schedule}')
 
-
         # modify
         # self.c = 1
-        # self.c = 1.4 * (10 ** 13)
-        self.c = 0.4845
+        self.c = 0.2119
+        # self.c = 0.4845
         self.r = 100
         self.t = torch.linspace(1, timesteps, timesteps, dtype=torch.float32)#t是步数，1到1000
         self.t_prev = F.pad(self.t[:-1], (1, 0), value=0)
@@ -40,11 +37,11 @@ class NBDiffusion:
         self.e_n = self.r * self.t
         self.d_n = self.r * self.t
         self.std_n = torch.sqrt(self.d_n)
-        # self.alpha = (self.t ** 2) / (1 + self.t ** 2)
-        self.seq = 0.9 - (0.1*self.t)/(self.t+1)
+        # seq为原DDPM的alpha
+        self.seq = 1. - sch
+        # seq_cumprod为原DDPM的alpha_bar
         self.seq_cumprod = torch.cumprod(self.seq, axis=0)
-        # self.alpha = (self.t) / (1 + self.t)
-        self.alpha = self.t * self.seq_cumprod
+        self.alpha = 1. - self.seq_cumprod
         self.sqrt_alpha = torch.sqrt(self.alpha)
         self.alpha_zero = 0.
         self.alpha_prev = F.pad(self.alpha[:-1], (1, 0), value=self.alpha_zero)
@@ -68,11 +65,6 @@ class NBDiffusion:
 
         # 计算后验分布q(x_{t-1} | x_t, x_0)
         self.posterior_variance = (
-            #self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
-            # self.betas
-            # 2*(self.betas - 1)/(self.betas ** 2)
-            # (self.t * self.betas * self.betas_1) / (self.betas_1 + self.t * self.betas)
-            # ((self.alpha_prev ** 2)*(self.t ** 2))/((self.alpha*(self.t_prev**4))+(self.t**2)*self.alpha_prev)
                 ((self.c ** 2)*self.alpha_prev)/self.t
         )#后验方差
 
@@ -84,27 +76,14 @@ class NBDiffusion:
         # x{t-1} 的均值系数
         # x0的系数
         self.posterior_mean_coef1 = (
-            # self.betas * torch.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
-            # 1/(self.sqrt_a*(self.betas**2))
-            # 2/(self.betas**2)
-            # (self.betas_1*torch.sqrt(self.betas))/(self.betas_1+self.t*self.betas)
             self.posterior_variance / (torch.sqrt(self.alpha_prev * self.t_prev)* (self.c**2))
 
         )
 
         # xt的系数
         self.posterior_mean_coef2 = (
-            # (1.0 - self.alphas_cumprod_prev)
-            # * torch.sqrt(self.alphas)
-            # / (1.0 - self.alphas_cumprod)
-            # 1-(1/(self.betas**2))
-            # (self.t * torch.sqrt(self.betas*self.betas_1))/(self.betas_1+self.t*self.betas)
-            # ((self.t_prev**2)*self.posterior_variance)/self.alpha_prev
             self.posterior_variance / (torch.sqrt(self.beta_prev * self.beta)* (self.c**2))
         )
-
-
-
 
     # get the param of given timestep t
     @classmethod
@@ -145,9 +124,6 @@ class NBDiffusion:
         coef1 = self._extract(self.predict_start_from_noise_coef1, t, x_t.shape)
         coef2 = self._extract(self.predict_start_from_noise_coef2, t, x_t.shape)
         return (
-            # self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
-            # self._extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
-            # (self._extract(self.predict_start_from_noise_coef1, t, x_t.shape) * x_t - self._extract(self.noise_coef1, t, x_t.shape) * noise)
             ( coef1 * x_t - coef2 * noise)
         )
 
@@ -195,7 +171,13 @@ class NBDiffusion:
     def p_sample_loop(self, model, shape):
         batch_size = shape[0]
         device = next(model.parameters()).device
-        img = torch.randn(shape, device=device)
+        # img = torch.randn(shape, device=device)
+
+        r_bar_t = self.r_bar[-1]
+        e_n_t = self.e_n[-1]
+        std_n_t = self.std_n[-1]
+        img = torch.distributions.Poisson(r_bar_t.squeeze()).sample(shape[1:]).permute([-1, 0, 1, 2])
+        img = (img - e_n_t) / std_n_t
         img = img.to(device)
 
         imgs = []

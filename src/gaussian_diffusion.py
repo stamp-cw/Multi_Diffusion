@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 
-from src.utils import cosine_beta_schedule, sigmoid_beta_schedule, sqrt_beta_schedule, \
+from src.utils import linear_beta_schedule,cosine_beta_schedule, sigmoid_beta_schedule, sqrt_beta_schedule, \
     gaussian_linear_beta_schedule
 import torch.nn.functional as F
 

@@ -4,21 +4,20 @@ from sympy.stats.sampling.sample_numpy import numpy
 from torchvision import datasets
 import torchvision.transforms as transforms
 
-from src.gamma_diffusion import GammaDiffusion
-# from src.gaussian_diffusion import GaussianDiffusion
-# from src.gaussian_nb import GaussianDiffusion
-from src.gaussian_diffusion_v2 import GaussianDiffusion
-# from src.nb_diffusion import NBDiffusion
-# from src.possion_diffusion import NBDiffusion
-from src.possion_diffusion_v2 import NBDiffusion
-from src.old_nb_diffusion import OLDNBDiffusion
 from src.unet import UNetModel
 from src.utils import import_config, plot_images
 from tensorboardX import SummaryWriter
-
 import matplotlib.pyplot as plt
-
 import logging
+
+from src.gamma_diffusion import GammaDiffusion
+from src.gaussian_diffusion import GaussianDiffusion
+from src.binomial_diffusion import BinomialDiffusion
+from src.negative_binomial_diffusion import NBinomialDiffusion
+from src.possion_diffusion import PossionDiffusion
+from src.optimize_gamma_diffusion import OGammaDiffusion
+
+
 logging.basicConfig(level=logging.INFO)
 
 ####################################################################################################
@@ -32,7 +31,6 @@ def train(config):
     :return:
     """
     logging.info("Start Train...")
-
     root_dir = config['root_dir']
     batch_size = config['model_config']['batch_size']
     timesteps = config['model_config']['timesteps']
@@ -43,16 +41,16 @@ def train(config):
     RESUME = True if config['resume']=="True" else False
     diffusion_type=config['diffusion_type']
 
-    if diffusion_type == "NB":
-        diffusion = NBDiffusion(timesteps=timesteps, beta_schedule=beta_schedule)
-    elif diffusion_type == "Gamma":
-        logging.debug("Gamma Diffusion Model")
-        diffusion = GammaDiffusion(timesteps=timesteps, beta_schedule=beta_schedule)
-    elif diffusion_type == "Gaussian":
-        diffusion = GaussianDiffusion(timesteps=timesteps, beta_schedule=beta_schedule)
-    elif diffusion_type == "OldNB":
-        logging.info("OldNB Diffusion Model")
-        diffusion = OLDNBDiffusion(timesteps=timesteps, beta_schedule=beta_schedule)
+    diffusion_dict = {
+        "Binomial":BinomialDiffusion,
+        "NBinomial":NBinomialDiffusion,
+        "Gaussian":GaussianDiffusion,
+        "Gamma": GammaDiffusion,
+        "Possion":PossionDiffusion,
+        "OGamma":OGammaDiffusion,
+    }
+    if diffusion_type in diffusion_dict.keys() :
+        diffusion = diffusion_dict[diffusion_type](timesteps=timesteps, beta_schedule=beta_schedule)
     else:
         diffusion = None
         ValueError("没有这个diffusion类型")
@@ -79,6 +77,9 @@ def train(config):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5]),
         ])
+        datasets.MNIST.mirrors = [
+            "https://dufs.v-v.icu/mnist/",
+        ]
         dataset = datasets.MNIST(rf"{root_dir}/data", train=True, download=True, transform=transform)
         dataset_channel = 1
         dataset_image_size = 32
@@ -166,8 +167,8 @@ def train(config):
             fig = plt.figure(figsize=(img_num * 2, img_num + 2), constrained_layout=True)
             gs = fig.add_gridspec(img_num * 2, img_num + 2)
             t_idx = [x * (timesteps // img_num) for x in range(img_num)]
-            t_idx[-1] = timesteps - 21
-            t_idx.append(timesteps - 11)
+            t_idx[-1] = timesteps - 11
+            t_idx.append(timesteps - 2)
             t_idx.append(timesteps - 1)
             for n_row in range(img_num):
                 for n_col in range(img_num + 2):

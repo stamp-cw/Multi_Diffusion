@@ -1,8 +1,8 @@
 {
   "root_dir": "C:\\Users\\75889\\PycharmProjects\\Multi_Diffusion",
   "logs_dir": "",
-  "diffusion_type": "Gaussian",
-  "experiment_name": "evaluate_001",
+  "diffusion_type": "OGamma",
+  "experiment_name": "OGamma_evaluate_001",
   "model_config": {
     "batch_size": 128,
     "timesteps": 1000,
@@ -10,7 +10,7 @@
   },
   "epochs": 10,
   "resume": "False",
-  "checkpoint_path": "D:\\Project\\Multi_Diffusion\\checkpoints\\checkpoint_nb0012_NB_False_9.pth",
+  "checkpoint_path": "",
   "group_epoch": 1,
   "datasets_type": "mnist",
   "eval_subprocess": ["plot","fid"]
