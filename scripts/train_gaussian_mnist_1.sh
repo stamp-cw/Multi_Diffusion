@@ -1,0 +1,1 @@
+python -m src.train --config configs/featurize_evaluate_gaussian_mnist_1.json

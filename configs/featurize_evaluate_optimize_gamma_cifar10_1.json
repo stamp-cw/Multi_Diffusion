@@ -12,6 +12,6 @@
   "resume": "False",
   "checkpoint_path": "/home/featurize/Multi_Diffusion/checkpoints/train_OGamma_cifar10_1_001_False_1.pth",
   "group_epoch": 1,
-  "datasets_type": "mnist",
+  "datasets_type": "cifar10",
   "eval_subprocess": ["fid"]
 }

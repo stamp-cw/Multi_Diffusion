@@ -1,0 +1,1 @@
+python -m src.train --config configs/featurize_evaluate_optimize_gamma_mnist_1.json
