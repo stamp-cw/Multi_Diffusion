@@ -380,9 +380,9 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
     for i in range(img_num):
         random_idx = next(iter(sampler))
         image, label = dataset[random_idx]
-        t_real_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}/real"
+        t_real_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}_{config['current_epoch']}/real"
         os.makedirs(t_real_dir,exist_ok=True)
-        save_image(image, rf"{t_real_dir}/real_{i}.png")
+        save_image(image, rf"{t_real_dir}/real_{i+1}.png")
 
     # 获取生成图像
     n = 1
@@ -391,7 +391,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
         for i in range(64):
             if n <= img_num:
                 img = transforms.ToTensor()((generated_images[-1][i].transpose([1, 2, 0]) + 1) / 2)
-                t_gen_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}/gen"
+                t_gen_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}_{config['current_epoch']}/gen"
                 os.makedirs(t_gen_dir, exist_ok=True)
                 save_image(img, rf"{t_gen_dir}/gen_{n}.png")
                 n += 1
@@ -414,16 +414,22 @@ def calc_fid(real_img_dir,gen_img_dir):
     print(metrics_dict)
     return metrics_dict
 
+
 def get_raw_images(config):
-    # 获取real图像
+    """加载指定数据集的真实图像，返回一个四维张量 [64, C, H, W]"""
+    # 初始化数据集和变换
     if config['type'] == "cifar10":
         transform = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ])
-        datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
-        dataset = datasets.CIFAR10(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
+        dataset = datasets.CIFAR10(
+            root=f"{config['root_dir']}/data",
+            train=True,
+            download=True,
+            transform=transform
+        )
     elif config['type'] == "mnist":
         transform = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
@@ -431,27 +437,37 @@ def get_raw_images(config):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5]),
         ])
-        datasets.MNIST.mirrors = [
-            "https://dufs.v-v.icu/mnist/",
-        ]
-        dataset = datasets.MNIST(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
+        dataset = datasets.MNIST(
+            root=f"{config['root_dir']}/data",
+            train=True,
+            download=True,
+            transform=transform
+        )
     elif config['type'] == "celebA":
         transform = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.CenterCrop(178),  # 先裁剪成正方形
-            # transforms.Resize(128),  # 缩放到128×128
-            transforms.Resize(64),  # 缩放到64×64
-            transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
+            transforms.CenterCrop(178),
+            transforms.Resize(64),
+            transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ])
         dataset = datasets.CelebA(
-            rf"{config['root_dir']}/data",
+            root=f"{config['root_dir']}/data",
             split="train",
-            transform=transform,
             download=True,
+            transform=transform
         )
+    else:
+        raise ValueError(f"Unsupported dataset type: {config['type']}")
 
-    return [dataset[i][0] for i in range(64)]
+    # 加载前64张图像并堆叠成四维张量
+    images = []
+    for i in range(min(64, len(dataset))):  # 防止数据集不足64张
+        img, _ = dataset[i]  # 忽略标签
+        images.append(img)
+
+    # 将列表中的张量堆叠成 [N, C, H, W]
+    return torch.stack(images)  # 关键修改点
 
 
 

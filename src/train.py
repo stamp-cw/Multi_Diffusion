@@ -219,6 +219,7 @@ def train(config):
                     {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':epoch,'exper_type':exper_type},
                     unet_model,
                     diffusion,
+                    writer,
                     8
                 )},
                 'fid':{
@@ -227,6 +228,7 @@ def train(config):
                         {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':epoch,'exper_type':exper_type},
                         unet_model,
                         diffusion,
+                        writer,
                         100
                     )
                 },
