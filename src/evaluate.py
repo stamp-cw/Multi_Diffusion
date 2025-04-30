@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 
 import torch
@@ -41,14 +42,15 @@ def plot_subprocess(config,unet_model,diffusion,img_num):
     fig_three = show_8_images_raw_and_denoise(raw_images, denoise_images, step=1000)
     writer.add_figure(rf"show_8_images_raw_and_denoise.png", fig_three)
 
-    random_images_grid = torchvision.utils.make_grid(images)
     raw_images_grid = torchvision.utils.make_grid(raw_images)
-    denoise_images_grid = torchvision.utils.make_grid(denoise_images)
-
-    writer.add_image('random_images_grid', random_images_grid, 0)
     writer.add_image('raw_images_grid', raw_images_grid, 0)
-    writer.add_image('denoise_images_grid', denoise_images_grid, 0)
 
+    # 过渡图
+    for step in range(1000):
+        random_images_grid = torchvision.utils.make_grid(images[step])
+        denoise_images_grid = torchvision.utils.make_grid(denoise_images[step])
+        writer.add_image('random_images_grid', random_images_grid, step)
+        writer.add_image('denoise_images_grid', denoise_images_grid, step)
 
     return 'ok'
 
@@ -56,7 +58,7 @@ def fid_subprocess(config,unet_model,diffusion,img_num=100):
     gen_fid_input(config,unet_model,diffusion,img_num)
     metrics_dict = calc_fid(rf"{config['root_dir']}/data/fid/{config['exper_name']}/real",rf"{config['root_dir']}/data/fid/{config['exper_name']}/gen")
     writer.add_scalar(rf'fid/evaluate', metrics_dict['frechet_inception_distance'], 100)
-
+    writer.add_text("fid_metrics_dict", json.dumps(metrics_dict, indent=2), global_step=0)
     return 'ok'
 
 def evaluate(config):

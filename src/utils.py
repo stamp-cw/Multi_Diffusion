@@ -333,6 +333,7 @@ def show_8_images_raw_and_denoise(raw_images,denoise_images,step=1000):
 ####################################################################################################
 # 计算FID
 ####################################################################################################
+
 def gen_fid_input(config,unet_model,diffusion,img_num=100):
     # 获取real图像
     if config['type'] == "cifar10":
@@ -407,9 +408,6 @@ def calc_fid(real_img_dir,gen_img_dir):
     )
     print(metrics_dict)
     return metrics_dict
-
-
-
 
 def get_raw_images(config):
     # 获取real图像
