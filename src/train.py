@@ -7,6 +7,8 @@ from sympy.stats.sampling.sample_numpy import numpy
 from torchvision import datasets
 import torchvision.transforms as transforms
 from torch_fidelity import calculate_metrics
+
+from src.evaluate import plot_subprocess, fid_subprocess
 from src.unet import UNetModel
 from src.utils import import_config, plot_images, show_8_images_12_denoising_steps
 from tensorboardX import SummaryWriter
@@ -45,6 +47,9 @@ def train(config):
     diffusion_type=config['diffusion_type']
     # exper_name = f"{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}"
     exper_name = f"{config['experiment_name']}"
+    eval_subprocess = config['eval_subprocess']
+    exper_type = config['exper_type']
+
 
     diffusion_dict = {
         "Binomial":BinomialDiffusion,
@@ -184,17 +189,17 @@ def train(config):
             }
             torch.save(check_point, rf"{root_dir}/checkpoints/{exper_name}_{RESUME}_{epoch+1}.pth")
 
-            # 绘图,采样4张图
-            generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
-
-            fig = show_8_images_12_denoising_steps(generated_images)
-            writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig)
-
-            for step in [0,50,100,200,400,600,800,900,970,990,998,999]:
-                images_grid = torchvision.utils.make_grid(generated_images[step])
-                writer.add_image(rf"{diffusion_type}_transition_{epoch}.png", images_grid, step)
-
-            plt.close()
+            # # 绘图,采样4张图
+            # generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
+            #
+            # fig = show_8_images_12_denoising_steps(generated_images)
+            # writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig)
+            #
+            # for step in [0,50,100,200,400,600,800,900,970,990,998,999]:
+            #     images_grid = torchvision.utils.make_grid(generated_images[step])
+            #     writer.add_image(rf"{diffusion_type}_transition_{epoch}.png", images_grid, step)
+            #
+            # plt.close()
 
             # 计算fid
             #indices = random.sample(range(len(dataset)), 64)
@@ -209,6 +214,33 @@ def train(config):
             #    verbose=True,  # 打印进度
             #)
             #writer.add_scalar(rf' Per {group_epoch} Epoch FID/train', metrics['frechet_inception_distance'], epoch)
+            subprocess_dict = {
+                'plot':{'func':plot_subprocess,'args':(
+                    {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':epoch,'exper_type':exper_type},
+                    unet_model,
+                    diffusion,
+                    8
+                )},
+                'fid':{
+                    'func':fid_subprocess,
+                    'args':(
+                        {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':epoch,'exper_type':exper_type},
+                        unet_model,
+                        diffusion,
+                        100
+                    )
+                },
+            }
+
+            subprocess_status_list = []
+
+            for subprocess in eval_subprocess:
+                if subprocess in subprocess_dict:
+                    func_info = subprocess_dict[subprocess]
+                    status = func_info['func'](*func_info['args'])
+                    subprocess_status_list.append({'subprocess':subprocess,'status':status})
+
+
 
 
 

@@ -244,13 +244,13 @@ def paint_images_3(imgs,img_num=8,time_steps=1000):
 ####################################################################################################
 
 
-def show_64_images(images,step=1000):
+def show_64_images(images,config,step=1000):
     '''
     images: shape --> 1000,64,32,32
     '''
     fig = plt.figure(figsize=(8, 8), constrained_layout=True)
     gs = fig.add_gridspec(8, 8)
-    imgs = images[step-1].reshape(1, 64, 1, 32, 32)
+    imgs = images[step-1].reshape(1, 64, config['channel'], config['image_size'], config['image_size'])
     for n_row in range(8):
         for n_col in range(8):
             f_ax = fig.add_subplot(gs[n_row, n_col])

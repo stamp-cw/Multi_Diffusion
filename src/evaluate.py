@@ -31,15 +31,14 @@ from src.optimize_gamma_diffusion import OGammaDiffusion
 def plot_subprocess(config,unet_model,diffusion,img_num):
 
     images = torch.tensor(diffusion.sample(unet_model, config['image_size'], batch_size=64, channels=config['channel']))
-    fig_one = show_64_images(images, step=1000)
+    fig_one = show_64_images(images, config,step=1000)
     writer.add_figure(rf"show_64_images.png", fig_one)
 
     fig_two = show_8_images_12_denoising_steps(images)
     writer.add_figure(rf"show_8_images_12_denoising_steps.png", fig_two)
 
     raw_images = get_raw_images(config)
-    denoise_images = diffusion.sampleA(unet_model, 32, raw_images, 128, 1)
-
+    denoise_images = diffusion.sampleA(unet_model, config['image_size'], raw_images, 64, config['channel'])
 
     fig_three = show_8_images_raw_and_denoise(raw_images, denoise_images, step=1000)
     writer.add_figure(rf"show_8_images_raw_and_denoise.png", fig_three)
@@ -59,8 +58,8 @@ def plot_subprocess(config,unet_model,diffusion,img_num):
 def fid_subprocess(config,unet_model,diffusion,img_num=100):
     gen_fid_input(config,unet_model,diffusion,img_num)
     metrics_dict = calc_fid(rf"{config['root_dir']}/data/fid/{config['exper_name']}/real",rf"{config['root_dir']}/data/fid/{config['exper_name']}/gen")
-    writer.add_scalar(rf'fid/evaluate', metrics_dict['frechet_inception_distance'], 100)
-    writer.add_text("fid_metrics_dict", json.dumps(metrics_dict, indent=2), global_step=0)
+    writer.add_scalar(rf"Per Group Epoch FID/{config['exper_type']}", metrics_dict['frechet_inception_distance'], config['current_epoch'])
+    writer.add_text("fid_metrics_dict", json.dumps(metrics_dict, indent=2), global_step=config['current_epoch'])
     return 'ok'
 
 def evaluate(config):
@@ -76,6 +75,7 @@ def evaluate(config):
     # exper_name = f"{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}"
     exper_name = f"{config['experiment_name']}"
     batch_size = config['model_config']['batch_size']
+    exper_type = config['exper_type']
 
 
     # 设置训练设备
@@ -129,12 +129,12 @@ def evaluate(config):
     # generate_image(diffusion,unet_model,img_num=3)
     # images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
 
-    # writer.add_graph(unet_model, torch.randn(batch_size,dataset_channel,dataset_image_size,dataset_image_size))
+    # writer.add_graph(unet_model, torch.randn(batch_size,dataset_channel,dataset_image_size,dataset_image_size),999)
 
     # 执行eval子流程
     subprocess_dict = {
         'plot':{'func':plot_subprocess,'args':(
-            {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir,'exper_name':exper_name},
+            {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':0,'exper_type':exper_type},
             unet_model,
             diffusion,
             8
@@ -142,7 +142,7 @@ def evaluate(config):
         'fid':{
             'func':fid_subprocess,
             'args':(
-                {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir,'exper_name':exper_name},
+                {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':0,'exper_type':exper_type},
                 unet_model,
                 diffusion,
                 100

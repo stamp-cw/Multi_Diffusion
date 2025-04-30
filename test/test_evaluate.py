@@ -134,14 +134,42 @@ class MyTestCase(unittest.TestCase):
         # writer.add_figure(rf"show_8_images_12_denoising_steps.png", fig_two)
 
         # three
-        fig_three = show_8_images_raw_and_denoise(real_images, images, step=1000)
-        writer.add_figure(rf"show_8_images_raw_and_denoise.png", fig_three)
+        # fig_three = show_8_images_raw_and_denoise(real_images, images, step=1000)
+        # writer.add_figure(rf"show_8_images_raw_and_denoise.png", fig_three)
 
         # four
-        writer.add_text("fid_metrics_dict", json.dumps({'a':1,'b':2}, indent=2), global_step=0)
-
+        # writer.add_text("fid_metrics_dict", json.dumps({'a':1,'b':2}, indent=2), global_step=0)
         writer.close()
 
+
+    def test_tensorboard2(self):
+        loaded_data = torch.load('../data/test/images.pt')
+        images = torch.tensor(loaded_data['images'])
+        real_loaded_data = torch.load('../data/test/real_images.pt')
+        real_images = torch.tensor(real_loaded_data['images'])
+        writer = SummaryWriter(rf'D:\Project\Multi_Diffusion\logs\test')
+
+        unet_model = UNetModel(
+            in_channels=1,
+            model_channels=128,
+            out_channels=1,
+            channel_mult=(1, 2, 2, 2),
+            attention_resolutions=(2,),
+            dropout=0.1
+        ).float()
+
+        check_point = torch.load(rf"D:\Project\Multi_Diffusion\checkpoints\checkpoint_OGama_002_OGamma_False_9.pth")
+        unet_model.load_state_dict(check_point["model_state_dict"])
+        unet_model = unet_model.to("cuda")
+
+        x_t = torch.randn(128,1,32,32,device="cuda")
+        t = torch.full((128,), 999, dtype=torch.long,device="cuda")
+
+        input_data = [x_t,t]
+
+        writer.add_graph(unet_model,input_data)
+
+        writer.close()
 
 
 
