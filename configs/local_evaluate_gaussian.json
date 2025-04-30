@@ -10,8 +10,10 @@
   },
   "epochs": 10,
   "resume": "False",
-  "checkpoint_path": "",
+  "checkpoint_path": "D:\\Project\\Multi_Diffusion\\checkpoints\\checkpoint_Gaussian_002_Gaussian_False_9.pth",
   "group_epoch": 1,
   "datasets_type": "mnist",
-  "eval_subprocess": ["plot","fid"]
+  "eval_subprocess": ["plot","fid"],
+  "exper_num": "001",
+  "exper_type": "evaluate"
 }

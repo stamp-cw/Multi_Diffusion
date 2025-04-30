@@ -254,7 +254,7 @@ def show_64_images(images,step=1000):
     for n_row in range(8):
         for n_col in range(8):
             f_ax = fig.add_subplot(gs[n_row, n_col])
-            img = imgs[0, n_row * 8 + n_col].transpose([1, 2, 0])
+            img = imgs[0, n_row * 8 + n_col].permute([1,2,0])
             img = numpy.array(
                 ( (img - img.min()) / ( img.max() - img.min() ) )*255,
                 dtype=numpy.uint8
@@ -288,47 +288,52 @@ def show_8_images_12_denoising_steps(images):
     return fig
 
 
-def show_8_images_raw_and_denoise(raw_images,denoise_images,step=1000):
+def show_8_images_raw_and_denoise(raw_images, denoise_images, step=1000):
     '''
-    raw_images = 64,32,32
-    denoise_images: shape --> 1000,64,32,32
+    raw_images = 64,32,32 (or 64,1,32,32 if single-channel)
+    denoise_images: shape --> 1000,64,32,32 (or 1000,64,1,32,32 if single-channel)
     '''
     fig = plt.figure(figsize=(8, 4), constrained_layout=True)
     gs = fig.add_gridspec(8, 4)
+
     for row in range(8):
+        # --- Raw Image ---
         f_col_zero = fig.add_subplot(gs[row, 0])
-        image_zero = raw_images[row*8].permute([1, 2, 0])
-        f_col_zero.imshow(image_zero)
+        image_zero = raw_images[row * 8].permute(1, 2, 0)  # (H, W, C)
+        f_col_zero.imshow(image_zero.squeeze(), cmap='gray' if image_zero.shape[-1] == 1 else None)
         f_col_zero.axis("off")
 
-        # 绘制直方图
+        # --- Raw Image Histogram ---
         f_col_one = fig.add_subplot(gs[row, 1])
-        if len(image_zero.shape) == 3:
+        image_zero_flat = image_zero.ravel()
+        if image_zero.shape[-1] == 1:  # Grayscale
+            f_col_one.hist(image_zero_flat, bins=256, color='red', alpha=0.7)
+        else:  # RGB
             for c, color in enumerate(['red', 'green', 'blue']):
-                hist_data = image_zero[:, :, c].ravel()  # 展平通道数据
+                hist_data = image_zero[:, :, c].ravel()
                 f_col_one.hist(hist_data, bins=256, color=color, alpha=0.5, label=color)
             f_col_one.legend()
-        else:  # 灰度图像
-            f_col_one.hist(image_zero.ravel(), bins=256, color='black', alpha=0.7)
         f_col_one.axis("off")
 
+        # --- Denoised Image ---
         f_col_two = fig.add_subplot(gs[row, 2])
-        image_two = torch.tensor(denoise_images[step-1][row*8]).permute([1, 2, 0])
-        f_col_two.imshow(image_two)
+        image_two = torch.tensor(denoise_images[step - 1][row * 8]).permute(1, 2, 0)
+        f_col_two.imshow(image_two.squeeze(), cmap='gray' if image_two.shape[-1] == 1 else None)
         f_col_two.axis("off")
 
-        # 绘制直方图
+        # --- Denoised Image Histogram ---
         f_col_three = fig.add_subplot(gs[row, 3])
-        if len(image_two.shape) == 3:
+        image_two_flat = image_two.ravel()
+        if image_two.shape[-1] == 1:  # Grayscale
+            f_col_three.hist(image_two_flat, bins=256, color='black', alpha=0.7)
+        else:  # RGB
             for c, color in enumerate(['red', 'green', 'blue']):
-                hist_data = image_two[:, :, c].ravel()  # 展平通道数据
+                hist_data = image_two[:, :, c].ravel()
                 f_col_three.hist(hist_data, bins=256, color=color, alpha=0.5, label=color)
             f_col_three.legend()
-        else:  # 灰度图像
-            f_col_three.hist(image_two.ravel(), bins=256, color='black', alpha=0.7)
         f_col_three.axis("off")
-    return fig
 
+    return fig
 
 ####################################################################################################
 # 计算FID

@@ -12,5 +12,8 @@
   "resume": "False",
   "checkpoint_path": "",
   "group_epoch": 1,
-  "datasets_type": "cifar10"
+  "datasets_type": "cifar10",
+  "eval_subprocess": ["plot","fid"],
+  "exper_num": "001",
+  "exper_type": "train"
 }

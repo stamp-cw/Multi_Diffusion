@@ -12,5 +12,8 @@
   "resume": "False",
   "checkpoint_path": "",
   "group_epoch": 1,
-  "datasets_type": "mnist"
+  "datasets_type": "mnist",
+  "eval_subprocess": ["plot"],
+  "exper_num": "001",
+  "exper_type": "train"
 }

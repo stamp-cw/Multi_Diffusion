@@ -1,6 +1,6 @@
 {
   "root_dir": "D:\\Project\\Multi_Diffusion",
-  "logs_dir": "",
+  "logs_dir": "D:\\Project\\Multi_Diffusion\\logs",
   "diffusion_type": "OGamma",
   "experiment_name": "OGamma_evaluate_001",
   "model_config": {
@@ -10,8 +10,10 @@
   },
   "epochs": 10,
   "resume": "False",
-  "checkpoint_path": "",
+  "checkpoint_path": "D:\\Project\\Multi_Diffusion\\checkpoints\\checkpoint_OGama_002_OGamma_False_9.pth",
   "group_epoch": 1,
   "datasets_type": "mnist",
-  "eval_subprocess": ["plot","fid"]
+  "eval_subprocess": ["fid"],
+  "exper_num": "001",
+  "exper_type": "evaluate"
 }

@@ -13,5 +13,7 @@
   "checkpoint_path": "D:\\Project\\Multi_Diffusion\\checkpoints\\checkpoint_OGama_002_OGamma_False_9.pth",
   "group_epoch": 1,
   "datasets_type": "mnist",
-  "eval_subprocess": ["fid"]
+  "eval_subprocess": ["plot","fid"],
+  "exper_num": "001",
+  "exper_type": "evaluate"
 }

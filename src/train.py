@@ -190,25 +190,25 @@ def train(config):
             fig = show_8_images_12_denoising_steps(generated_images)
             writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig)
 
-            for step in range(1000):
+            for step in [0,50,100,200,400,600,800,900,970,990,998,999]:
                 images_grid = torchvision.utils.make_grid(generated_images[step])
                 writer.add_image(rf"{diffusion_type}_transition_{epoch}.png", images_grid, step)
 
             plt.close()
 
             # 计算fid
-            indices = random.sample(range(len(dataset)), 64)
-            real_images = torch.stack([dataset[i][0] for i in indices])
-            metrics = calculate_metrics(
-                input1=real_images,
-                input2=generated_images[999],
-                cuda=True,  # 使用 GPU 加速
-                fid=True,  # 计算 FID
-                input1_model="default",  # 使用默认 InceptionV3 特征提取器
-                input2_model="default",
-                verbose=True,  # 打印进度
-            )
-            writer.add_scalar(rf' Per {group_epoch} Epoch FID/train', metrics['frechet_inception_distance'], epoch)
+            #indices = random.sample(range(len(dataset)), 64)
+            #real_images = torch.stack([dataset[i][0] for i in indices])
+            #metrics = calculate_metrics(
+            #    input1=real_images,
+            #    input2=generated_images[999],
+            #    cuda=True,  # 使用 GPU 加速
+            #    fid=True,  # 计算 FID
+            #    input1_model="default",  # 使用默认 InceptionV3 特征提取器
+            #    input2_model="default",
+            #    verbose=True,  # 打印进度
+            #)
+            #writer.add_scalar(rf' Per {group_epoch} Epoch FID/train', metrics['frechet_inception_distance'], epoch)
 
 
 

@@ -13,5 +13,7 @@
   "checkpoint_path": "/home/featurize/Multi_Diffusion/checkpoints/train_OGamma_celebA_1_001_False_1.pth",
   "group_epoch": 1,
   "datasets_type": "celebA",
-  "eval_subprocess": ["fid"]
+  "eval_subprocess": ["plot","fid"],
+  "exper_num": "001",
+  "exper_type": "evaluate"
 }
