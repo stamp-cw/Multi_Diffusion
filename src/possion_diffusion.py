@@ -41,7 +41,7 @@ class PossionDiffusion:
         self.seq = 1. - sch
         # seq_cumprod为原DDPM的alpha_bar
         self.seq_cumprod = torch.cumprod(self.seq, axis=0)
-        self.alpha = 1. - self.seq_cumprod
+        self.alpha = 1 - self.seq_cumprod
         self.sqrt_alpha = torch.sqrt(self.alpha)
         self.alpha_zero = 0.
         self.alpha_prev = F.pad(self.alpha[:-1], (1, 0), value=self.alpha_zero)
