@@ -8,19 +8,19 @@ from torchvision import datasets
 import torchvision.transforms as transforms
 from torch_fidelity import calculate_metrics
 
-from src.evaluate import plot_subprocess, fid_subprocess
+from src.evaluate.evaluate import plot_subprocess, fid_subprocess
 from src.unet import UNetModel
-from src.utils import import_config, plot_images, show_8_images_12_denoising_steps
+from src.utils import import_config, plot_images, show_8_images_12_denoising_steps, show_64_images
 from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
 import logging
 
-from src.gamma_diffusion import GammaDiffusion
-from src.gaussian_diffusion import GaussianDiffusion
-from src.binomial_diffusion import BinomialDiffusion
-from src.negative_binomial_diffusion import NBinomialDiffusion
-from src.possion_diffusion import PossionDiffusion
-from src.optimize_gamma_diffusion import OGammaDiffusion
+from src.diffusions.gamma_diffusion import GammaDiffusion
+from src.diffusions.gaussian_diffusion import GaussianDiffusion
+from src.diffusions.binomial_diffusion import BinomialDiffusion
+from src.diffusions.negative_binomial_diffusion import NBinomialDiffusion
+from src.diffusions.possion_diffusion import PossionDiffusion
+from src.diffusions.optimize_gamma_diffusion import OGammaDiffusion
 
 
 logging.basicConfig(level=logging.INFO)
@@ -45,10 +45,9 @@ def train(config):
     group_epoch = config['group_epoch']  # 多少个epoch 为一组 ，用于记录
     RESUME = True if config['resume']=="True" else False
     diffusion_type=config['diffusion_type']
-    # exper_name = f"{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}"
-    exper_name = f"{config['experiment_name']}"
-    eval_subprocess = config['eval_subprocess']
     exper_type = config['exper_type']
+    exper_name = f"{config['exper_type']}_{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}_{config['resume']}_{config['exper_num']}"
+    eval_subprocess = config['eval_subprocess']
 
 
     diffusion_dict = {
@@ -134,7 +133,7 @@ def train(config):
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=2e-4)
 
     # 是否继续训练
-    start_epoch = -1
+    start_epoch = 0
 
     if RESUME:
         checkpoint_path = config['checkpoint_path']
@@ -146,104 +145,36 @@ def train(config):
     # 统一张量的device
     unet_model = unet_model.to(device)
 
-    # Unet 训练 nb 噪声
-    group_epoch_total_loss = 0
-    for epoch in range(start_epoch + 1, epochs):
-        per_epoch_total_loss = 0
+    # Unet 训练 噪声
+    for epoch in range(start_epoch + 1, epochs + 1):
+        print(f"即将训练 第{epoch}轮")
+
         for step, (images, labels) in enumerate(train_loader):
             optimizer.zero_grad()
-
             batch_size = images.shape[0]
             images = images.to(device)
-
-            # sample t uniformally for every example in the batch
             t = torch.randint(0, timesteps, (batch_size,), device=device).long()
-
             loss = diffusion.train_losses(unet_model, images, t)
-            per_epoch_total_loss += loss.item()
-
-            # tensorboard记录每个batch的 loss
             writer.add_scalar('Batch Loss/train', loss.item(), epoch * len(train_loader) + step)
-
-            # loss 逆向传播
             loss.backward()
-            # 进行梯度下降
             optimizer.step()
-
-        group_epoch_total_loss += per_epoch_total_loss
-
-        # 记录每个epoch的平均loss
-        per_epoch_avg_loss = per_epoch_total_loss / len(train_loader)
-        writer.add_scalar(rf'Per Epoch Avg Loss/train', per_epoch_avg_loss, epoch)
-
-        if epoch % group_epoch == 0:
-
-            group_epoch_avg_loss = group_epoch_total_loss / group_epoch * len(train_loader)
-            writer.add_scalar(rf' Per {group_epoch} Epoch Avg Loss/train', group_epoch_avg_loss, epoch)
-            print(f"Epoch {epoch}, Loss {group_epoch_avg_loss}")
-
+        if epoch % group_epoch == 0 or epoch == 1:
             check_point = {
                 "epoch": epoch,
                 "model_state_dict": unet_model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
             }
-            torch.save(check_point, rf"{root_dir}/checkpoints/{exper_name}_{RESUME}_{epoch+1}.pth")
+            torch.save(check_point, rf"{root_dir}/checkpoints/{exper_name}_{epoch}.pth")
 
-            # # 绘图,采样4张图
-            # generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
-            #
-            # fig = show_8_images_12_denoising_steps(generated_images)
-            # writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig)
-            #
-            # for step in [0,50,100,200,400,600,800,900,970,990,998,999]:
-            #     images_grid = torchvision.utils.make_grid(generated_images[step])
-            #     writer.add_image(rf"{diffusion_type}_transition_{epoch}.png", images_grid, step)
-            #
-            # plt.close()
+            # 绘图
+            generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
+            fig_one = show_8_images_12_denoising_steps(generated_images)
+            writer.add_image(rf"{diffusion_type}_transition_{epoch}.png", fig_one)
 
-            # 计算fid
-            #indices = random.sample(range(len(dataset)), 64)
-            #real_images = torch.stack([dataset[i][0] for i in indices])
-            #metrics = calculate_metrics(
-            #    input1=real_images,
-            #    input2=generated_images[999],
-            #    cuda=True,  # 使用 GPU 加速
-            #    fid=True,  # 计算 FID
-            #    input1_model="default",  # 使用默认 InceptionV3 特征提取器
-            #    input2_model="default",
-            #    verbose=True,  # 打印进度
-            #)
-            #writer.add_scalar(rf' Per {group_epoch} Epoch FID/train', metrics['frechet_inception_distance'], epoch)
-            subprocess_dict = {
-                'plot':{'func':plot_subprocess,'args':(
-                    {'type': datasets_type, 'image_size': dataset_image_size, 'channel': dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':epoch,'exper_type':exper_type},
-                    unet_model,
-                    diffusion,
-                    writer,
-                    8
-                )},
-                'fid':{
-                    'func':fid_subprocess,
-                    'args':(
-                        {'type':datasets_type,'image_size':dataset_image_size,'channel':dataset_channel,'root_dir':root_dir,'exper_name':exper_name,'current_epoch':epoch,'exper_type':exper_type},
-                        unet_model,
-                        diffusion,
-                        writer,
-                        100
-                    )
-                },
-            }
+            fig_two = show_64_images(generated_images,config)
+            writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig_two)
 
-            subprocess_status_list = []
-
-            for subprocess in eval_subprocess:
-                if subprocess in subprocess_dict:
-                    func_info = subprocess_dict[subprocess]
-                    status = func_info['func'](*func_info['args'])
-                    subprocess_status_list.append({'subprocess':subprocess,'status':status})
-
-
-
+            plt.close()
 
 
 if __name__ == '__main__':
@@ -256,13 +187,13 @@ if __name__ == '__main__':
     if args.config:
         config_path = args.config
     else:
-        config_path = rf"D:\Project\Multi_Diffusion\configs\local_train.json"
+        config_path = rf"/configs/local_train.json"
 
     train_config = import_config(config_path)
     logs_dir = train_config['logs_dir']
     experiment_name = train_config["experiment_name"]
     # tensorboar 记录
-    writer = SummaryWriter(rf'{logs_dir}/{experiment_name}')
+    writer = SummaryWriter(rf'{logs_dir}/{experiment_name}',flush_secs=120)
     # 开始训练
     train(train_config)
     # 结尾工作

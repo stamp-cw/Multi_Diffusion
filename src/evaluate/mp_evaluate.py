@@ -1,7 +1,7 @@
 import argparse
 import json
 import os
-
+from multiprocessing import Process, Queue
 import torch
 import torchvision
 #import torch_fidelity
@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 from src.utils import generate_image,paint_images_1,paint_images_2,paint_images_3
 from src.utils import calc_fid
 
-from src.gamma_diffusion import GammaDiffusion
-from src.gaussian_diffusion import GaussianDiffusion
-from src.binomial_diffusion import BinomialDiffusion
-from src.negative_binomial_diffusion import NBinomialDiffusion
-from src.possion_diffusion import PossionDiffusion
-from src.optimize_gamma_diffusion import OGammaDiffusion
+from src.diffusions.gamma_diffusion import GammaDiffusion
+from src.diffusions.gaussian_diffusion import GaussianDiffusion
+from src.diffusions.binomial_diffusion import BinomialDiffusion
+from src.diffusions.negative_binomial_diffusion import NBinomialDiffusion
+from src.diffusions.possion_diffusion import PossionDiffusion
+from src.diffusions.optimize_gamma_diffusion import OGammaDiffusion
 
 ####################################################################################################
 # 评价
@@ -70,11 +70,12 @@ def evaluate(config):
     checkpoint_path = config['checkpoint_path']
     datasets_type = config['datasets_type']
     diffusion_type = config['diffusion_type']
-    eval_subprocess = config['eval_subprocess']
-    # exper_name = f"{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}"
-    exper_name = f"{config['experiment_name']}"
-    batch_size = config['model_config']['batch_size']
     exper_type = config['exper_type']
+    eval_subprocess = config['eval_subprocess']
+
+    ok_epoch = config.get('ok_epoch', '')
+
+    exper_name = f"{config['exper_type']}_{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}_{config['resume']}_{config['exper_num']}_{ok_epoch}"
 
 
     # 设置训练设备
@@ -125,10 +126,6 @@ def evaluate(config):
     check_point = torch.load(checkpoint_path)
     unet_model.load_state_dict(check_point["model_state_dict"])
     unet_model = unet_model.to(device)
-    # generate_image(diffusion,unet_model,img_num=3)
-    # images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
-
-    # writer.add_graph(unet_model, torch.randn(batch_size,dataset_channel,dataset_image_size,dataset_image_size),999)
 
     # 执行eval子流程
     subprocess_dict = {
@@ -146,7 +143,7 @@ def evaluate(config):
                 unet_model,
                 diffusion,
                 writer,
-                100
+                1000
             )
         },
     }
@@ -159,6 +156,15 @@ def evaluate(config):
             status = func_info['func'](*func_info['args'])
             subprocess_status_list.append({'subprocess':subprocess,'status':status})
 
+
+
+def multi_evaluate(q):
+    while True:
+        config = q.get()
+        # config["eval_subprocess"] = None
+        config["exper_type"] = "evaluate"
+        evaluate(config)
+
 if __name__ == '__main__':
     # 获取命令行参数
     parser = argparse.ArgumentParser(description="这是一个评价脚本，用于评价模型。")
@@ -168,7 +174,7 @@ if __name__ == '__main__':
     if args.config:
         config_path = args.config
     else:
-        config_path = rf"D:\Project\Multi_Diffusion\configs\local_evaluate.json"
+        config_path = rf"/configs/local_evaluate.json"
     evaluate_config = import_config(config_path)
     logs_dir = evaluate_config['logs_dir']
     experiment_name = evaluate_config["experiment_name"]
