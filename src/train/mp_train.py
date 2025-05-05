@@ -1,7 +1,8 @@
 import argparse
+import os
 import random
 from multiprocessing import Process, Queue
-
+from multiprocessing import Pool
 import torch
 import torchvision
 from sympy.stats.sampling.sample_numpy import numpy
@@ -10,7 +11,7 @@ import torchvision.transforms as transforms
 from torch_fidelity import calculate_metrics
 
 from src.evaluate.evaluate import plot_subprocess, fid_subprocess
-from src.evaluate.mp_evaluate import evaluate
+from src.evaluate.mp_evaluate import evaluate, multi_evaluate
 from src.unet import UNetModel
 from src.utils import import_config, plot_images, show_8_images_12_denoising_steps, show_64_images
 from tensorboardX import SummaryWriter
@@ -62,9 +63,6 @@ def train(config):
     }
     if diffusion_type in diffusion_dict.keys() :
         diffusion = diffusion_dict[diffusion_type](timesteps=timesteps, beta_schedule=beta_schedule)
-    else:
-        diffusion = None
-        ValueError("没有这个diffusion类型")
 
     # 设置训练设备
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -112,12 +110,6 @@ def train(config):
         )
         dataset_channel = 3
         dataset_image_size = 64
-
-    else:
-        dataset = None
-        dataset_channel = None
-        dataset_image_size = None
-        ValueError('没有这个数据集类型')
 
     train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
@@ -168,16 +160,6 @@ def train(config):
             }
             torch.save(check_point, rf"{root_dir}/checkpoints/{exper_name}_{epoch}.pth")
 
-            # 绘图
-            generated_images = torch.tensor(diffusion.sample(unet_model, dataset_image_size, batch_size=64, channels=dataset_channel))
-            fig_one = show_8_images_12_denoising_steps(generated_images)
-            writer.add_image(rf"{diffusion_type}_transition_{epoch}.png", fig_one)
-
-            fig_two = show_64_images(generated_images,config)
-            writer.add_figure(rf"{diffusion_type}_sample_{epoch}.png", fig_two)
-
-            plt.close()
-
             config['checkpoint_path'] = rf"{root_dir}/checkpoints/{exper_name}_{epoch}.pth"
             config['ok_epoch'] = epoch
             q.put(config)
@@ -197,11 +179,16 @@ if __name__ == '__main__':
 
     train_config = import_config(config_path)
     logs_dir = train_config['logs_dir']
-    experiment_name = train_config["experiment_name"]
+    # experiment_name = train_config["experiment_name"]
+    experiment_name = f"{train_config['exper_type']}_{train_config['diffusion_type']}_{train_config['datasets_type']}_{train_config['epochs']}_{train_config['resume']}_{train_config['exper_num']}"
 
     q = Queue()
-    p = Process(target=evaluate, args=(q,))
+
+    # 开启两个evaluate进程
+    p = Process(target=multi_evaluate, args=(q,))
+    p2 = Process(target=multi_evaluate, args=(q,))
     p.start()
+    p2.start()
 
     # tensorboar 记录
     writer = SummaryWriter(rf'{logs_dir}/{experiment_name}',flush_secs=120)
@@ -211,4 +198,6 @@ if __name__ == '__main__':
     writer.close()
 
     q.put(None)
+    q.put(None)
+
     p.join()

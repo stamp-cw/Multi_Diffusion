@@ -63,8 +63,8 @@ def fid_subprocess(config,unet_model,diffusion,writer,img_num=100):
 
 def evaluate(config):
     # 加载变量与模型
-    root_dir = evaluate_config['root_dir']
-    logs_dir = evaluate_config['logs_dir']
+    root_dir = config['root_dir']
+    logs_dir = config['logs_dir']
     timesteps = config['model_config']['timesteps']
     beta_schedule = config['model_config']['beta_schedule']
     checkpoint_path = config['checkpoint_path']

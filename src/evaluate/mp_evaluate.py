@@ -37,22 +37,22 @@ def plot_subprocess(config,unet_model,diffusion,writer,img_num):
     fig_two = show_8_images_12_denoising_steps(images)
     writer.add_figure(rf"show_8_images_12_denoising_steps_epoch_{config['current_epoch']}", fig_two)
 
-    raw_images = get_raw_images(config)
-    denoise_images = torch.tensor(diffusion.sampleA(unet_model, config['image_size'], raw_images, 64, config['channel']))
-
-    fig_three = show_8_images_raw_and_denoise(raw_images, denoise_images, step=1000)
-    writer.add_figure(rf"show_8_images_raw_and_denoise_epoch_{config['current_epoch']}", fig_three)
-
-    raw_images_grid = torchvision.utils.make_grid(raw_images)
-    writer.add_image(rf"raw_images_grid_{config['current_epoch']}", raw_images_grid)
+    # raw_images = get_raw_images(config)
+    # denoise_images = torch.tensor(diffusion.sampleA(unet_model, config['image_size'], raw_images, 64, config['channel']))
+    #
+    # fig_three = show_8_images_raw_and_denoise(raw_images, denoise_images, step=1000)
+    # writer.add_figure(rf"show_8_images_raw_and_denoise_epoch_{config['current_epoch']}", fig_three)
+    #
+    # raw_images_grid = torchvision.utils.make_grid(raw_images)
+    # writer.add_image(rf"raw_images_grid_{config['current_epoch']}", raw_images_grid)
 
     # 过渡图
-    for step in [0, 50, 100, 200, 400, 600, 800, 900, 970, 990, 998, 999]:
-        random_images_grid = torchvision.utils.make_grid(images[step])
-        denoise_images_grid = torchvision.utils.make_grid(denoise_images[step])
-        writer.add_image(rf"random_images_grid_{config['current_epoch']}", random_images_grid, step)
-        writer.add_image(rf"denoise_images_grid_{config['current_epoch']}", denoise_images_grid, step)
-    return 'ok'
+    # for step in [0, 50, 100, 200, 400, 600, 800, 900, 970, 990, 998, 999]:
+    #     random_images_grid = torchvision.utils.make_grid(images[step])
+    #     denoise_images_grid = torchvision.utils.make_grid(denoise_images[step])
+    #     writer.add_image(rf"random_images_grid_{config['current_epoch']}", random_images_grid, step)
+    #     writer.add_image(rf"denoise_images_grid_{config['current_epoch']}", denoise_images_grid, step)
+    # return 'ok'
 
 def fid_subprocess(config,unet_model,diffusion,writer,img_num=100):
     gen_fid_input(config,unet_model,diffusion,img_num)
@@ -61,10 +61,10 @@ def fid_subprocess(config,unet_model,diffusion,writer,img_num=100):
     writer.add_text("fid_metrics_dict", json.dumps(metrics_dict, indent=2), global_step=config['current_epoch'])
     return 'ok'
 
-def evaluate(config):
+def evaluate(config,writer):
     # 加载变量与模型
-    root_dir = evaluate_config['root_dir']
-    logs_dir = evaluate_config['logs_dir']
+    root_dir = config['root_dir']
+    logs_dir = config['logs_dir']
     timesteps = config['model_config']['timesteps']
     beta_schedule = config['model_config']['beta_schedule']
     checkpoint_path = config['checkpoint_path']
@@ -143,7 +143,7 @@ def evaluate(config):
                 unet_model,
                 diffusion,
                 writer,
-                1000
+                100
             )
         },
     }
@@ -161,26 +161,39 @@ def evaluate(config):
 def multi_evaluate(q):
     while True:
         config = q.get()
-        # config["eval_subprocess"] = None
-        config["exper_type"] = "evaluate"
-        evaluate(config)
+
+        if config is None:
+            break
+        else:
+            # config["eval_subprocess"] = None
+            config["exper_type"] = "evaluate"
+            logs_dir = config["logs_dir"]
+            exper_name = f"{config['exper_type']}_{config['diffusion_type']}_{config['datasets_type']}_{config['epochs']}_{config['resume']}_{config['exper_num']}_{config['ok_epoch']}"
+
+            writer = SummaryWriter(rf'{logs_dir}/{exper_name}')
+            print(f"评价{config['ok_epoch']}")
+
+            evaluate(config,writer)
+            writer.close()
+
 
 if __name__ == '__main__':
-    # 获取命令行参数
-    parser = argparse.ArgumentParser(description="这是一个评价脚本，用于评价模型。")
-    parser.add_argument('--config', type=str, required=True, help='输入配置文件的路径')
-    args = parser.parse_args()
-
-    if args.config:
-        config_path = args.config
-    else:
-        config_path = rf"/configs/local_evaluate.json"
-    evaluate_config = import_config(config_path)
-    logs_dir = evaluate_config['logs_dir']
-    experiment_name = evaluate_config["experiment_name"]
-
-    # tensorboar 记录
-    writer = SummaryWriter(rf'{logs_dir}/{experiment_name}')
-    evaluate(evaluate_config)
-    # 结尾工作
-    writer.close()
+    pass
+    # # 获取命令行参数
+    # parser = argparse.ArgumentParser(description="这是一个评价脚本，用于评价模型。")
+    # parser.add_argument('--config', type=str, required=True, help='输入配置文件的路径')
+    # args = parser.parse_args()
+    #
+    # if args.config:
+    #     config_path = args.config
+    # else:
+    #     config_path = rf"/configs/local_evaluate.json"
+    # evaluate_config = import_config(config_path)
+    # logs_dir = evaluate_config['logs_dir']
+    # experiment_name = evaluate_config["experiment_name"]
+    #
+    # # tensorboar 记录
+    # writer = SummaryWriter(rf'{logs_dir}/{experiment_name}')
+    # evaluate(evaluate_config)
+    # # 结尾工作
+    # writer.close()

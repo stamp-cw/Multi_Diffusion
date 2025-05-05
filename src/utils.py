@@ -405,7 +405,7 @@ def calc_fid(real_img_dir,gen_img_dir):
     metrics_dict = torch_fidelity.calculate_metrics(
         input1=real_img_dir,
         input2=gen_img_dir,
-        cuda=True,
+        cuda=False,
         fid=True,
         # kid=True,
         isc=True,
