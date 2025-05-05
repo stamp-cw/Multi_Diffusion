@@ -149,7 +149,7 @@ def train(config):
             images = images.to(device)
             t = torch.randint(0, timesteps, (batch_size,), device=device).long()
             loss = diffusion.train_losses(unet_model, images, t)
-            writer.add_scalar('Batch Loss/train', loss.item(), epoch * len(train_loader) + step)
+            writer.add_scalar('Batch_Loss/train', loss.item(), epoch * len(train_loader) + step)
             loss.backward()
             optimizer.step()
         if epoch % group_epoch == 0 or epoch == 1:
