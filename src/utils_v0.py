@@ -33,7 +33,7 @@ def negative_binomial_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.9
     beta_end = scale * 0.000996
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
 
 def gaussian_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
@@ -45,19 +45,19 @@ def gamma_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
 
 def possion_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.1
     beta_end = scale * 0.2
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
 
 def optimize_gamma_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
 
 def cosine_beta_schedule(timesteps, s=0.008):
     """
@@ -346,7 +346,6 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
         ])
         datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
         dataset = datasets.CIFAR10(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
@@ -356,7 +355,6 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.Pad(padding=2),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5]),
-            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
         ])
         datasets.MNIST.mirrors = [
             "https://dufs.v-v.icu/mnist/",
@@ -370,7 +368,6 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.Resize(64),  # 缩放到64×64
             transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
         ])
         dataset = datasets.CelebA(
             rf"{config['root_dir']}/data",
@@ -390,8 +387,8 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
     # 获取生成图像
     n = 1
     while n <= img_num:
-        generated_images = diffusion.sample(unet_model, config['image_size'], batch_size=512, channels=config['channel'])
-        for i in range(512):
+        generated_images = diffusion.sample(unet_model, config['image_size'], batch_size=64, channels=config['channel'])
+        for i in range(64):
             if n <= img_num:
                 img = transforms.ToTensor()((generated_images[-1][i].transpose([1, 2, 0]) + 1) / 2)
                 t_gen_dir = rf"{config['root_dir']}/data/fid/{config['exper_name']}_{config['current_epoch']}/gen"
@@ -408,9 +405,9 @@ def calc_fid(real_img_dir,gen_img_dir):
     metrics_dict = torch_fidelity.calculate_metrics(
         input1=real_img_dir,
         input2=gen_img_dir,
-        cuda=True,
+        cuda=False,
         fid=True,
-        kid=True,
+        # kid=True,
         isc=True,
         verbose=True,
     )

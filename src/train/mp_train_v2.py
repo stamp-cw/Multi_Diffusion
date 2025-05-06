@@ -5,29 +5,18 @@ from multiprocessing import Process, Queue
 from multiprocessing import Pool
 import torch
 import torchvision
-from scipy.special import dtype
 from sympy.stats.sampling.sample_numpy import numpy
 from torchvision import datasets
 import torchvision.transforms as transforms
 from torch_fidelity import calculate_metrics
 
 from src.evaluate.evaluate import plot_subprocess, fid_subprocess
-from src.evaluate.mp_evaluate import evaluate, multi_evaluate
+from src.evaluate.mp_evaluate_v2 import evaluate, multi_evaluate
 from src.unet import UNetModel
 from src.utils import import_config, plot_images, show_8_images_12_denoising_steps, show_64_images
 from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
 import logging
-
-
-import os
-import torch
-import torch.distributed as dist
-import torch.multiprocessing as mp
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.distributed import DistributedSampler
-
 
 from src.diffusions.gamma_diffusion import GammaDiffusion
 from src.diffusions.gaussian_diffusion import GaussianDiffusion
@@ -36,73 +25,19 @@ from src.diffusions.negative_binomial_diffusion import NBinomialDiffusion
 from src.diffusions.possion_diffusion import PossionDiffusion
 from src.diffusions.optimize_gamma_diffusion import OGammaDiffusion
 
+
 logging.basicConfig(level=logging.INFO)
 
 ####################################################################################################
 # 训练
 ####################################################################################################
 
-
-def load_dataset(root_dir,datasets_type):
-    # 加载数据集
-    if datasets_type == "cifar10":
-        transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-        ])
-        datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
-        dataset = datasets.CIFAR10(rf"{root_dir}/data", train=True, download=True, transform=transform)
-        dataset_channel = 3
-        dataset_image_size = 32
-    elif datasets_type == "mnist":
-        transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.Pad(padding=2),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5], std=[0.5]),
-        ])
-        datasets.MNIST.mirrors = [
-            "https://dufs.v-v.icu/mnist/",
-            "https://ossci-datasets.s3.amazonaws.com/mnist/"
-        ]
-        dataset = datasets.MNIST(rf"{root_dir}/data", train=True, download=True, transform=transform)
-        dataset_channel = 1
-        dataset_image_size = 32
-    elif datasets_type == "celebA":
-        transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.CenterCrop(178),  # 先裁剪成正方形
-            # transforms.Resize(128),  # 缩放到128×128
-            transforms.Resize(64),  # 缩放到64×64
-            transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-        ])
-        dataset = datasets.CelebA(
-            rf"{root_dir}/data",
-            split="train",
-            transform=transform,
-            download=True,
-        )
-        dataset_channel = 3
-        dataset_image_size = 64
-
-    return dataset,dataset_channel,dataset_image_size
-
-
-def train(rank,world_size,config):
+def train(config):
     """
     Train
     :param config:
     :return:
     """
-
-    # 环境变量
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-    # os.environ["GLOO_USE_LIBUV"] = "0"
-    dist.init_process_group("nccl",init_method="env://", rank=rank, world_size=world_size)
-
     logging.info("Start Train...")
     root_dir = config['root_dir']
     batch_size = config['model_config']['batch_size']
@@ -130,15 +65,56 @@ def train(rank,world_size,config):
         diffusion = diffusion_dict[diffusion_type](timesteps=timesteps, beta_schedule=beta_schedule)
 
     # 设置训练设备
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    torch.cuda.set_device(rank)
-    logging.debug(f"Already used <{rank}>")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    logging.debug(f"Already used <{device}>")
 
-    dataset, dataset_channel, dataset_image_size = load_dataset(root_dir,datasets_type)
+    # 加载数据集
+    if datasets_type == "cifar10":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
+        ])
+        datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
+        dataset = datasets.CIFAR10(rf"{root_dir}/data", train=True, download=True, transform=transform)
+        dataset_channel = 3
+        dataset_image_size = 32
+    elif datasets_type == "mnist":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.Pad(padding=2),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5]),
+            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
+        ])
+        datasets.MNIST.mirrors = [
+            "https://dufs.v-v.icu/mnist/",
+            "https://ossci-datasets.s3.amazonaws.com/mnist/"
+        ]
+        dataset = datasets.MNIST(rf"{root_dir}/data", train=True, download=True, transform=transform)
+        dataset_channel = 1
+        dataset_image_size = 32
+    elif datasets_type == "celebA":
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.CenterCrop(178),  # 先裁剪成正方形
+            # transforms.Resize(128),  # 缩放到128×128
+            transforms.Resize(64),  # 缩放到64×64
+            transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
+        ])
+        dataset = datasets.CelebA(
+            rf"{root_dir}/data",
+            split="train",
+            transform=transform,
+            download=True,
+        )
+        dataset_channel = 3
+        dataset_image_size = 64
 
-    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
-
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,sampler=sampler)
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # 创建unet_model
     unet_model = UNetModel(
@@ -148,7 +124,7 @@ def train(rank,world_size,config):
         channel_mult=(1, 2, 2, 2),
         attention_resolutions=(2,),
         dropout=0.1
-    )
+    ).double()
 
     # 设置优化器
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=2e-4)
@@ -163,23 +139,18 @@ def train(rank,world_size,config):
         optimizer.load_state_dict(check_point["optimizer_state_dict"])
         start_epoch = check_point["epoch"]
 
-
-    device = rank
-
     # 统一张量的device
-    unet_model = unet_model.to(device,dtype=torch.float64)
-    unet_model = DDP(unet_model, device_ids=[rank])
+    unet_model = unet_model.to(device)
 
     # Unet 训练 噪声
     for epoch in range(start_epoch + 1, epochs + 1):
-        print(f"即将训练 第{epoch}轮,Rank {rank}")
+        print(f"即将训练 第{epoch}轮")
 
         for step, (images, labels) in enumerate(train_loader):
-            images = images.to(device,dtype=torch.float64)
-            # images = images.to(rank)
             optimizer.zero_grad()
             batch_size = images.shape[0]
-            t = torch.randint(0, timesteps, (batch_size,), device=device,dtype=torch.long)
+            images = images.to(device)
+            t = torch.randint(0, timesteps, (batch_size,), device=device).long()
             loss = diffusion.train_losses(unet_model, images, t)
             writer.add_scalar('Batch_Loss/train', loss.item(), epoch * len(train_loader) + step)
             loss.backward()
@@ -195,7 +166,7 @@ def train(rank,world_size,config):
             config['checkpoint_path'] = rf"{root_dir}/checkpoints/{exper_name}_{epoch}.pth"
             config['ok_epoch'] = epoch
             q.put(config)
-    dist.destroy_process_group()
+
 
 if __name__ == '__main__':
     # 获取命令行参数
@@ -224,12 +195,8 @@ if __name__ == '__main__':
 
     # tensorboar 记录
     writer = SummaryWriter(rf'{logs_dir}/{experiment_name}',flush_secs=120)
-
-    world_size = torch.cuda.device_count()
-    print(f"Found {world_size} GPUs.")
-    mp.spawn(train, args=(world_size,train_config), nprocs=world_size, join=True)
     # 开始训练
-    # train(train_config)
+    train(train_config)
     # 结尾工作
     writer.close()
 
