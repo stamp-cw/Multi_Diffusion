@@ -14,7 +14,7 @@ class OGammaDiffusion:
     def __init__(
             self,
             timesteps=1000,
-            theta_0=0.0001,
+            theta_0=0.00001,
             beta_schedule='linear'
     ):
         self.timesteps = timesteps
@@ -39,8 +39,8 @@ class OGammaDiffusion:
         self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - self.alphas_cumprod)
         self.log_one_minus_alphas_cumprod = torch.log(1.0 - self.alphas_cumprod)
         self.sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / self.alphas_cumprod)
-        self.sqrt_recip_one_minus_alphas_cumprod = torch.sqrt(1.0 / (1.0-self.alphas_cumprod))
         self.sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / self.alphas_cumprod - 1)
+        self.sqrt_recip_one_minus_alphas_cumprod = torch.sqrt(1.0 / (1.0 - self.alphas_cumprod))
 
         # gamma atribute
         self.theta_0 = theta_0
@@ -88,10 +88,9 @@ class OGammaDiffusion:
                 [-1, 0, 1, 2])
 
             noise = noise - kappas_cumsum_thetas_t
-            noise = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape) * noise
 
         sqrt_alphas_cumprod_t = self._extract(self.sqrt_alphas_cumprod, t, x_start.shape)
-        return sqrt_alphas_cumprod_t * x_start + noise / self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape)
+        return sqrt_alphas_cumprod_t * x_start + noise
         # return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
     # Get the mean and variance of q(x_t | x_0).
@@ -119,7 +118,7 @@ class OGammaDiffusion:
         return (
                 #self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
                 #self._extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
-                self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * (x_t - noise / self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_t.shape))
+                self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * (x_t - noise)
         )
 
     # compute predicted mean and variance of p(x_{t-1} | x_t)
@@ -211,16 +210,12 @@ class OGammaDiffusion:
             [-1, 0, 1, 2])
 
         noise = noise - kappas_cumsum_thetas_t
-        noise = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape)*noise
-
-        # noise = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape) * noise
         noise = noise.reshape([-1, x_start.shape[0]]).T
         noise = noise.reshape(x_start.shape)
+        coef = self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape)
 
         # get x_t
         x_noisy = self.q_sample(x_start, t, noise=noise)
         predicted_noise = model(x_noisy, t)
-
-        # loss =  F.mse_loss(self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape)*noise, self._extract(self.sqrt_recip_one_minus_alphas_cumprod, t, x_start.shape)*predicted_noise)
-        loss = F.mse_loss(noise, predicted_noise)
+        loss = F.mse_loss(coef*noise, coef*predicted_noise)
         return loss

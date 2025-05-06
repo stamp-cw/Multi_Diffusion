@@ -102,7 +102,6 @@ def train(rank,world_size,config):
     # os.environ["GLOO_USE_LIBUV"] = "0"
     dist.init_process_group("nccl",init_method="env://", rank=rank, world_size=world_size)
 
-
     logging.info("Start Train...")
     root_dir = config['root_dir']
     batch_size = config['model_config']['batch_size']
@@ -138,8 +137,7 @@ def train(rank,world_size,config):
 
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
 
-
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,sampler=sampler)
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,sampler=sampler)
 
     # 创建unet_model
     unet_model = UNetModel(
@@ -151,7 +149,6 @@ def train(rank,world_size,config):
         dropout=0.1
     ).float()
 
-    unet_model = DDP(unet_model, device_ids=[rank])
 
     # 设置优化器
     optimizer = torch.optim.Adam(unet_model.parameters(), lr=2e-4)
@@ -171,6 +168,7 @@ def train(rank,world_size,config):
 
     # 统一张量的device
     unet_model = unet_model.to(device)
+    unet_model = DDP(unet_model, device_ids=[rank])
 
     # Unet 训练 噪声
     for epoch in range(start_epoch + 1, epochs + 1):
