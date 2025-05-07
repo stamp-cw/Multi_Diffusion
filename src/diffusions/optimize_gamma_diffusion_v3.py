@@ -54,8 +54,8 @@ class OGammaDiffusion:
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         self.posterior_variance = (
-            # self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
-            self.betas
+            self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+            # self.betas
         )
         # below: log calculation clipped because the posterior variance is 0 at the beginning
         # of the diffusion chain

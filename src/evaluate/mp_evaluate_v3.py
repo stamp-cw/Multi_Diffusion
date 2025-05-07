@@ -22,7 +22,7 @@ from src.diffusions.gaussian_diffusion import GaussianDiffusion
 from src.diffusions.binomial_diffusion import BinomialDiffusion
 from src.diffusions.negative_binomial_diffusion import NBinomialDiffusion
 from src.diffusions.possion_diffusion import PossionDiffusion
-from src.diffusions.optimize_gamma_diffusion import OGammaDiffusion
+from src.diffusions.optimize_gamma_diffusion_v1 import OGammaDiffusion
 
 ####################################################################################################
 # 评价
