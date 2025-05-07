@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from torch_fidelity import calculate_metrics
 
 from src.evaluate.evaluate import plot_subprocess, fid_subprocess
-from src.evaluate.mp_evaluate import evaluate, multi_evaluate
+from src.evaluate.mp_evaluate_v1 import evaluate, multi_evaluate
 from src.unet import UNetModel
 from src.utils import import_config, plot_images, show_8_images_12_denoising_steps, show_64_images
 from tensorboardX import SummaryWriter
@@ -23,7 +23,7 @@ from src.diffusions.gaussian_diffusion import GaussianDiffusion
 from src.diffusions.binomial_diffusion import BinomialDiffusion
 from src.diffusions.negative_binomial_diffusion import NBinomialDiffusion
 from src.diffusions.possion_diffusion import PossionDiffusion
-from src.diffusions.optimize_gamma_diffusion import OGammaDiffusion
+from src.diffusions.optimize_gamma_diffusion_v1 import OGammaDiffusion
 
 
 logging.basicConfig(level=logging.INFO)

@@ -21,43 +21,43 @@ def linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def binomial_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def negative_binomial_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.9
     beta_end = scale * 0.000996
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def gaussian_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def gamma_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def possion_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.1
     beta_end = scale * 0.2
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def optimize_gamma_linear_beta_schedule(timesteps):
     scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float32)
+    return torch.linspace(beta_start, beta_end, timesteps, dtype=torch.float64)
 
 def cosine_beta_schedule(timesteps, s=0.008):
     """
@@ -65,7 +65,7 @@ def cosine_beta_schedule(timesteps, s=0.008):
     as proposed in https://arxiv.org/abs/2102.09672
     """
     steps = timesteps + 1
-    x = torch.linspace(0, timesteps, steps, dtype=torch.float32)
+    x = torch.linspace(0, timesteps, steps, dtype=torch.float64)
     alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * math.pi * 0.5) ** 2
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
@@ -78,7 +78,7 @@ def sigmoid_beta_schedule(timesteps, start = -3, end = 3, tau = 1, clamp_min = 1
     better for images > 64x64, when used during training
     """
     steps = timesteps + 1
-    t = torch.linspace(0, timesteps, steps, dtype = torch.float32) / timesteps
+    t = torch.linspace(0, timesteps, steps, dtype = torch.float64) / timesteps
     v_start = torch.tensor(start / tau).sigmoid()
     v_end = torch.tensor(end / tau).sigmoid()
     alphas_cumprod = (-((t * (end - start) + start) / tau).sigmoid() + v_end) / (v_end - v_start)
@@ -92,7 +92,7 @@ def sqrt_beta_schedule(timesteps, s=0.0001):
     proposed in https://arxiv.org/abs/2205.14217
     """
     steps = timesteps + 1
-    t = torch.linspace(0, timesteps, steps, dtype = torch.float32) / timesteps
+    t = torch.linspace(0, timesteps, steps, dtype = torch.float64) / timesteps
     alphas_cumprod = 1 - torch.sqrt(t + s)
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
@@ -346,7 +346,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            transforms.Lambda(lambda x: x.to(torch.float32)),  # 转换为 float64
+            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
         ])
         datasets.CIFAR10.url = "https://ai-studio-online.bj.bcebos.com/v1/8cf77ffb4c584eaaa716edb69eb0af6541eb532ddc0f4d00bfd7a06b113a2441?responseContentDisposition=attachment%3Bfilename%3Dcifar-10-python.tar.gz&authorization=bce-auth-v1%2F5cfe9a5e1454405eb2a975c43eace6ec%2F2025-01-23T15%3A41%3A37Z%2F21600%2F%2F8ba5a4006db020fa30e061cb18f8f7e93d5d5fce2492c17ac37c4d0f9fd7dcb2"
         dataset = datasets.CIFAR10(rf"{config['root_dir']}/data", train=True, download=True, transform=transform)
@@ -356,7 +356,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.Pad(padding=2),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5]),
-            transforms.Lambda(lambda x: x.to(torch.float32)),  # 转换为 float64
+            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
         ])
         datasets.MNIST.mirrors = [
             "https://dufs.v-v.icu/mnist/",
@@ -370,7 +370,7 @@ def gen_fid_input(config,unet_model,diffusion,img_num=100):
             transforms.Resize(64),  # 缩放到64×64
             transforms.ToTensor(),  # 必须启用，将PIL图像转为Tensor
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            transforms.Lambda(lambda x: x.to(torch.float32)),  # 转换为 float64
+            transforms.Lambda(lambda x: x.to(torch.float64)),  # 转换为 float64
         ])
         dataset = datasets.CelebA(
             rf"{config['root_dir']}/data",
