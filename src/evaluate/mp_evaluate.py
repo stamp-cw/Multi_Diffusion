@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import time
 from multiprocessing import Process, Queue
 import torch
 import torchvision
@@ -172,6 +173,7 @@ def multi_evaluate(q):
 
             writer = SummaryWriter(rf'{logs_dir}/{exper_name}')
             print(f"评价{config['ok_epoch']}")
+            writer.add_text("当前日期与时间", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
 
             evaluate(config,writer)
             writer.close()

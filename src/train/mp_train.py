@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import time
 from multiprocessing import Process, Queue
 from multiprocessing import Pool
 import torch
@@ -142,7 +143,7 @@ def train(config):
     # Unet 训练 噪声
     for epoch in range(start_epoch + 1, epochs + 1):
         print(f"即将训练 第{epoch}轮")
-
+        start_time = time.time()
         for step, (images, labels) in enumerate(train_loader):
             optimizer.zero_grad()
             batch_size = images.shape[0]
@@ -164,6 +165,10 @@ def train(config):
             config['ok_epoch'] = epoch
             q.put(config)
 
+        end_time = time.time()
+        epoch_time = end_time - start_time
+        writer.add_scalar('Per_Epoch_Time/train', epoch_time, epoch)
+        print(f"Epoch {epoch + 1}/{epochs} - Time: {epoch_time:.2f}s")
 
 if __name__ == '__main__':
     # 获取命令行参数
@@ -193,6 +198,8 @@ if __name__ == '__main__':
     # tensorboar 记录
     writer = SummaryWriter(rf'{logs_dir}/{experiment_name}',flush_secs=120)
     # 开始训练
+    writer.add_text("当前日期与时间", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+
     train(train_config)
     # 结尾工作
     writer.close()
